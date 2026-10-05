@@ -1,5 +1,5 @@
 // BOXFLOW service worker — caches the app shell so it runs offline once installed.
-const CACHE = 'boxflow-v1';
+const CACHE = 'boxflow-v2';
 const ASSETS = [
   './', './index.html', './css/style.css', './manifest.webmanifest',
   './vendor/three.module.js',

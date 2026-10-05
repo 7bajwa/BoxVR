@@ -46,7 +46,9 @@ export class VRUI {
     this.game = game;
     this.menu = new CanvasPanel(1024, 1180, 0.78);
     this.hud = new CanvasPanel(1400, 360, 1.25);
-    scene.add(this.menu.mesh, this.hud.mesh);
+    // Small in-game bar (VR, while playing): Settings toggle + Stop. Keeps the play space clear.
+    this.mini = new CanvasPanel(640, 150, 0.4);
+    scene.add(this.menu.mesh, this.hud.mesh, this.mini.mesh);
     this.raycaster = new THREE.Raycaster();
     this.drag = null; // { slot }
     this.dirty = true;
@@ -64,6 +66,10 @@ export class VRUI {
       B('recenter', 60, 840, 440, 90, () => game.recenter()),
       B('exit', 524, 840, 440, 90, () => game.exitVR()),
     ];
+    this.mini.buttons = [
+      B('settings', 10, 10, 305, 130, () => { game.menuOpen = !game.menuOpen; }),
+      B('stop', 325, 10, 305, 130, () => game.stop()),
+    ];
   }
 
   placeFor(anchor, running) {
@@ -77,6 +83,9 @@ export class VRUI {
       m.rotation.set(-0.15, 0, 0, 'YXZ');
       m.scale.setScalar(1);
     }
+    const mini = this.mini.mesh;
+    mini.position.set(anchor.x - 0.55, anchor.y - 0.6, anchor.z - 0.45);
+    mini.rotation.set(-0.9, Math.PI / 6, 0, 'YXZ');
     this.hud.mesh.position.set(anchor.x, anchor.y + 0.55, anchor.z - 1.7);
     this.hud.mesh.rotation.set(0.12, 0, 0);
   }
@@ -144,6 +153,15 @@ export class VRUI {
     this.menu.tex.needsUpdate = true;
   }
 
+  drawMini() {
+    const { g, canvas } = this.mini;
+    g.clearRect(0, 0, canvas.width, canvas.height);
+    const [set, stop] = this.mini.buttons;
+    this.drawButton(g, set, this.game.menuOpen ? '✕ Close' : '⚙ Settings', this.game.menuOpen, 44);
+    this.drawButton(g, stop, '■ Stop', true, 44, '#ff3355');
+    this.mini.tex.needsUpdate = true;
+  }
+
   btn(id) { return this.menu.buttons.find((b) => b.id === id); }
 
   drawButton(g, b, label, on, size, accent = '#22d3ff') {
@@ -205,17 +223,22 @@ export class VRUI {
     for (const slot of rig.slots) {
       if (!slot.inputSource) { slot.line.visible = false; slot.dot.visible = false; continue; }
       rig.getRay(slot, this.raycaster);
-      const hit = this.raycaster.intersectObject(this.menu.mesh, false)[0];
-      slot.hit = hit || null;
+      let hit = null, panel = null;
+      for (const p of [this.menu, this.mini]) {
+        if (!p.mesh.visible) continue;
+        const h = this.raycaster.intersectObject(p.mesh, false)[0];
+        if (h && (!hit || h.distance < hit.distance)) { hit = h; panel = p; }
+      }
+      slot.hit = hit; slot.hitPanel = panel;
       slot.line.visible = !!hit || (this.drag && this.drag.slot === slot);
       slot.dot.visible = !!hit;
       if (hit) {
         slot.line.scale.z = hit.distance;
         slot.dot.position.copy(hit.point);
-        const b = this.menu.hitTest(hit.uv);
+        const b = panel.hitTest(hit.uv);
         if (b) anyHover = b.id;
       }
-      if (this.drag && this.drag.slot === slot && hit) this.applySlider(hit.uv);
+      if (this.drag && this.drag.slot === slot && hit && panel === this.menu) this.applySlider(hit.uv);
     }
     if (anyHover !== this.hoverId) { this.hoverId = anyHover; this.dirty = true; }
   }
@@ -229,7 +252,7 @@ export class VRUI {
 
   selectStart(slot) {
     if (!slot.hit) return false;
-    const b = this.menu.hitTest(slot.hit.uv);
+    const b = slot.hitPanel.hitTest(slot.hit.uv);
     if (!b) return true;
     if (b.id === 'slider') { this.drag = { slot }; this.applySlider(slot.hit.uv); }
     else { b.onClick(); this.game.audio.sfxClick(); }
@@ -240,7 +263,7 @@ export class VRUI {
   selectEnd(slot) { if (this.drag && this.drag.slot === slot) { this.drag = null; this.dirty = true; } }
 
   update(now) {
-    if (this.dirty) { this.drawMenu(); this.dirty = false; }
+    if (this.dirty) { this.drawMenu(); this.drawMini(); this.dirty = false; }
     this.drawHud(now);
   }
 }

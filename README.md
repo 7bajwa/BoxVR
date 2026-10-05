@@ -21,8 +21,10 @@ To change the combo, edit `SEQUENCE` in [js/config.js](js/config.js).
 
 ## Playing
 
-**Quest 3:** open the GitHub Pages URL in the Meta Quest Browser and tap **ENTER VR**.
-Play with hand-tracking (make fists) or Touch controllers. Point and pinch (or pull the trigger) to use the menu.
+**Quest 3:** open the GitHub Pages URL in the Meta Quest Browser and tap the big **🥽 ENTER VR** button.
+The button appears only when a headset is detected, which needs HTTPS (GitHub Pages provides it).
+Play with hand-tracking (make fists) or Touch controllers. Point and pinch (or pull the trigger) at the floating menu and press **START SESSION**.
+While you play, the menu hides. A small **⚙ Settings / ■ Stop** bar floats low on your left.
 - Punch each target with the matching hand as it reaches the gate. Shrinking approach rings show the timing.
 - Chevrons on a target show the direction: sideways for hooks, upward for uppercuts. A dot means a straight punch.
 - Use **Recenter** in the menu to move the lane to where you're standing. To reset which way you face, hold the Meta button.

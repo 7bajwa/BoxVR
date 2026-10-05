@@ -46,6 +46,7 @@ const game = {
   best: store.get('best', { score: 0, chain: 0 }),
   anchor: new THREE.Vector3(0, 1.6, 0),
   recenterPending: false,
+  menuOpen: false, // VR: settings panel shown while playing
   scoring, spawner, audio,
 
   async start() {
@@ -58,7 +59,9 @@ const game = {
     this.syncMusic(anchorBeat);
     audio.start();
     this.running = true;
+    this.menuOpen = false;
     ui.placeFor(this.anchor, true);
+    htmlUI.openSettings?.(false);
     this.changed();
   },
 
@@ -69,6 +72,7 @@ const game = {
     scoring.stop(now);
     audio.stop();
     this.running = false;
+    this.menuOpen = false;
     if (scoring.score > this.best.score || scoring.longest > this.best.chain) {
       this.best = { score: Math.max(scoring.score, this.best.score), chain: Math.max(scoring.longest, this.best.chain) };
       store.set('best', this.best);
@@ -195,7 +199,8 @@ function frame() {
   spawner.update(now, dt, xr ? rig.fists : null, viewCam);
   fx.update(dt, viewCam);
   env.update(dt, game.running ? TUNING.spawnDistance / spawner.travel : 0.6);
-  ui.menu.mesh.visible = xr;
+  ui.menu.mesh.visible = xr && (!game.running || game.menuOpen);
+  ui.mini.mesh.visible = xr && game.running;
   ui.hud.mesh.visible = xr;
   ui.update(now);
   htmlUI.tick(now);
@@ -240,20 +245,39 @@ const htmlUI = {
       pads.appendChild(b);
       a.pad = b;
     }
-    const seq = $('sequence');
-    SEQUENCE.forEach((id, i) => {
-      const a = ACTIONS[id]; const s = document.createElement('span');
-      s.className = 'chip'; s.style.setProperty('--c', hex(a.color)); s.textContent = a.label; s.dataset.i = i;
-      seq.appendChild(s);
-    });
-
-    if (navigator.xr) {
-      navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
-        const b = $('enterVR');
-        if (ok) { b.disabled = false; b.textContent = 'ENTER VR'; b.onclick = () => enterVR().catch((e) => alert('Could not start VR: ' + e.message)); }
-        else b.textContent = 'VR not available on this device';
+    for (const seq of document.querySelectorAll('.seqchips')) {
+      SEQUENCE.forEach((id, i) => {
+        const a = ACTIONS[id]; const s = document.createElement('span');
+        s.className = 'chip'; s.style.setProperty('--c', hex(a.color)); s.textContent = a.label; s.dataset.i = i;
+        seq.appendChild(s);
       });
-    } else $('enterVR').textContent = 'WebXR not supported — use Quest Browser';
+    }
+
+    // Settings drawer
+    const openSettings = (open) => document.body.classList.toggle('settings-open', open);
+    $('gear').onclick = () => openSettings(!document.body.classList.contains('settings-open'));
+    $('openSettings').onclick = () => openSettings(true);
+    $('closeSettings').onclick = () => openSettings(false);
+    this.openSettings = openSettings;
+    $('playWeb').onclick = () => game.start();
+    $('stopBtn').onclick = () => game.stop();
+
+    // VR availability: show the ENTER VR buttons only where an immersive session is possible.
+    const tryVR = () => { openSettings(false); enterVR().catch((e) => alert('Could not start VR: ' + e.message)); };
+    $('enterVR').onclick = tryVR;
+    $('vrPill').onclick = tryVR;
+    const note = $('vrNote');
+    if (!window.isSecureContext) {
+      note.textContent = 'VR needs HTTPS — open the GitHub Pages link in the Meta Quest Browser.';
+    } else if (!navigator.xr) {
+      note.textContent = 'To play in VR, open this page in the Meta Quest Browser on your headset.';
+    } else {
+      navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
+        $('enterVR').hidden = !ok; $('vrPill').hidden = !ok;
+        if (ok) { $('playWeb').textContent = '▶ PLAY ON SCREEN'; note.textContent = 'Stand in a clear space · hands or controllers'; }
+        else note.textContent = 'No VR headset detected — play with keyboard/touch, or open this page in the Meta Quest Browser.';
+      }).catch(() => {});
+    }
     this.refresh();
   },
 
@@ -266,6 +290,8 @@ const htmlUI = {
     $('startStop').textContent = game.running ? '■ STOP SESSION' : '▶ START SESSION';
     $('startStop').classList.toggle('stop', game.running);
     document.body.classList.toggle('running', game.running);
+    $('speedBadge').textContent = `${game.speed.toFixed(1)}×`;
+    $('musicBadge').textContent = game.musicOn ? 'ON' : 'OFF';
     $('best').textContent = `Best: ${game.best.score} pts · chain ${game.best.chain}`;
     const sc = scoring;
     $('summary').textContent = !game.running && sc.hits + sc.misses + sc.mistakes > 0
@@ -282,7 +308,7 @@ const htmlUI = {
     $('hStreak').textContent = scoring.streak;
     $('hLongest').textContent = scoring.longest;
     $('hTime').textContent = fmtTime(scoring.duration(now));
-    document.querySelectorAll('#sequence .chip').forEach((c) =>
+    document.querySelectorAll('#hudSeq .chip').forEach((c) =>
       c.classList.toggle('next', game.running && Number(c.dataset.i) === spawner.nextIndex()));
   },
 
@@ -306,6 +332,7 @@ window.addEventListener('keydown', (e) => {
   if (e.repeat || e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
   if (k === ' ') { e.preventDefault(); game.running ? game.stop() : game.start(); return; }
+  if (k === 'escape') { htmlUI.openSettings(!document.body.classList.contains('settings-open')); return; }
   if (KEYMAP[k]) punch(KEYMAP[k]);
 });
 

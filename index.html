@@ -18,18 +18,43 @@
   <div id="stage"></div>
   <div id="flash"></div>
 
+  <!-- In-game HUD (only while playing) -->
   <header id="hud">
-    <div><small>SCORE</small><span id="hScore">0</span></div>
-    <div><small>STREAK</small><span id="hStreak" class="g">0</span></div>
-    <div><small>LONGEST CHAIN</small><span id="hLongest" class="y">0</span></div>
-    <div><small>TIME</small><span id="hTime" class="c">00:00</span></div>
+    <div class="stats">
+      <div><small>SCORE</small><span id="hScore">0</span></div>
+      <div><small>STREAK</small><span id="hStreak" class="g">0</span></div>
+      <div><small>LONGEST CHAIN</small><span id="hLongest" class="y">0</span></div>
+      <div><small>TIME</small><span id="hTime" class="c">00:00</span></div>
+    </div>
+    <div class="seqchips" id="hudSeq"></div>
   </header>
 
-  <aside id="panel">
+  <!-- Always-available corner controls -->
+  <div id="corner">
+    <button id="vrPill" class="pill vr" hidden>🥽 VR</button>
+    <button id="stopBtn" class="pill stop">■ Stop</button>
+    <button id="gear" class="pill icon" aria-label="Settings">⚙</button>
+  </div>
+
+  <!-- Start screen -->
+  <main id="startScreen">
     <h1>BOXFLOW</h1>
     <p class="tag">Infinite boxing-sequence rhythm trainer</p>
+    <button id="enterVR" class="big vr" hidden>🥽 ENTER VR</button>
+    <button id="playWeb" class="big play">▶ PLAY IN BROWSER</button>
+    <p id="vrNote" class="note"></p>
+    <div class="seqchips" id="startSeq"></div>
+    <p id="summary"></p>
+    <p id="best"></p>
+    <button id="openSettings" class="link">⚙ Settings · Speed <span id="speedBadge">1.0×</span> · Music <span id="musicBadge">ON</span></button>
+  </main>
 
-    <button id="enterVR" class="vr" disabled>Checking for VR…</button>
+  <!-- Settings drawer -->
+  <aside id="settings" aria-hidden="true">
+    <div class="drawer-head">
+      <h2>Settings</h2>
+      <button id="closeSettings" class="pill icon" aria-label="Close">✕</button>
+    </div>
 
     <section>
       <div class="row"><label for="speed">Speed</label><strong id="speedVal">1.0×</strong></div>
@@ -44,21 +69,13 @@
     <button id="music" class="toggle">♪ Music: ON</button>
     <button id="startStop" class="start">▶ START SESSION</button>
 
-    <section>
-      <div class="row"><label>Sequence (loops forever)</label></div>
-      <div id="sequence"></div>
-    </section>
-
-    <p id="summary"></p>
-    <p id="best"></p>
-
     <details>
       <summary>How to play</summary>
       <ul>
-        <li><b>Quest 3:</b> open this page in the Meta Quest Browser, tap <b>ENTER VR</b>. Use hand-tracking (make fists) or Touch controllers.</li>
+        <li><b>Quest 3:</b> open this page in the Meta Quest Browser and tap <b>ENTER VR</b>. Use hand-tracking (make fists) or Touch controllers. Point and pinch (or pull the trigger) at the floating menu to start.</li>
         <li>Punch each glowing target with the <b>matching hand</b> as it reaches the gate. Straights go forward, hooks sweep sideways (follow the chevrons), uppercuts drive upward.</li>
         <li>Score = timing accuracy + punch power, multiplied by your streak. Misses and wrong-hand punches break the chain.</li>
-        <li><b>Browser:</b> keys <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> (left: upper, hook, jab) and <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> (right: cross, hook, upper). <kbd>Space</kbd> starts/stops. On phones tap the pads.</li>
+        <li><b>Browser:</b> keys <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> (left: upper, hook, jab) and <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> (right: cross, hook, upper). <kbd>Space</kbd> starts/stops, <kbd>Esc</kbd> opens settings. On phones tap the pads.</li>
       </ul>
     </details>
   </aside>
