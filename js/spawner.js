@@ -72,6 +72,16 @@ export class Spawner {
 
   stop() { this.running = false; this.clear(); }
 
+  // Pause support: push every pending beat later by `d` seconds so nothing is missed.
+  shift(d) {
+    this.nextHit += d;
+    for (const t of this.active) { t.hitTime += d; t.deadTime += d; }
+  }
+
+  setVisible(v) {
+    for (const t of this.active) { t.group.visible = v; if (!v) t.ghost.visible = false; }
+  }
+
   clear() {
     for (const t of this.active) { t.reset(); t.ghost.visible = false; }
     this.active.length = 0;

@@ -1,4 +1,5 @@
-// BOXFLOW — game bootstrap: renderer, XR session, game state, main loop, desktop fallback.
+// BOXFLOW — game bootstrap: renderer, XR session, game state machine, main loop, web UI.
+// States: 'menu' → play() → 'playing' ⇄ pause()/resume() 'paused' → toMenu() → 'menu'
 import * as THREE from 'three';
 import { ACTIONS, SEQUENCE, SPEED, TUNING, hex, intervalFor } from './config.js';
 import { AudioEngine, bpmForInterval } from './audio.js';
@@ -20,9 +21,8 @@ renderer.xr.setFoveation(0.5);
 document.getElementById('stage').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.03, 120);
-const DESKTOP_CAM = { pos: new THREE.Vector3(0, 1.72, 0.85), look: new THREE.Vector3(0, 1.42, -0.9) };
-camera.position.copy(DESKTOP_CAM.pos); camera.lookAt(DESKTOP_CAM.look);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.03, 600);
+const DESKTOP_CAM = { pos: new THREE.Vector3(0, 1.72, 0.85), look: new THREE.Vector3(0, 1.4, -2.6) };
 scene.add(camera);
 
 const env = new Environment(scene);
@@ -38,80 +38,6 @@ const store = {
   set(k, v) { try { localStorage.setItem('boxflow.' + k, JSON.stringify(v)); } catch { /* private mode */ } },
 };
 
-// ---------------------------------------------------------------- game state
-const game = {
-  speed: Math.min(SPEED.max, Math.max(SPEED.min, store.get('speed', SPEED.default))),
-  musicOn: store.get('music', true),
-  running: false,
-  best: store.get('best', { score: 0, chain: 0 }),
-  anchor: new THREE.Vector3(0, 1.6, 0),
-  recenterPending: false,
-  menuOpen: false, // VR: settings panel shown while playing
-  scoring, spawner, audio,
-
-  async start() {
-    await audio.resume();
-    audio.setMusic(this.musicOn);
-    const now = clock.now();
-    scoring.start(now);
-    spawner.anchor.copy(this.anchor);
-    const anchorBeat = spawner.start(now, this.speed);
-    this.syncMusic(anchorBeat);
-    audio.start();
-    this.running = true;
-    this.menuOpen = false;
-    ui.placeFor(this.anchor, true);
-    htmlUI.openSettings?.(false);
-    this.changed();
-  },
-
-  stop() {
-    if (!this.running) return;
-    const now = clock.now();
-    spawner.stop();
-    scoring.stop(now);
-    audio.stop();
-    this.running = false;
-    this.menuOpen = false;
-    if (scoring.score > this.best.score || scoring.longest > this.best.chain) {
-      this.best = { score: Math.max(scoring.score, this.best.score), chain: Math.max(scoring.longest, this.best.chain) };
-      store.set('best', this.best);
-    }
-    ui.placeFor(this.anchor, false);
-    this.changed();
-  },
-
-  setSpeed(s) {
-    this.speed = Math.min(SPEED.max, Math.max(SPEED.min, Math.round(s * 10) / 10));
-    store.set('speed', this.speed);
-    const anchorBeat = spawner.setSpeed(this.speed, clock.now());
-    if (this.running) this.syncMusic(anchorBeat);
-    this.changed();
-  },
-
-  syncMusic(anchorBeat) {
-    const interval = intervalFor(this.speed);
-    const { beatsPerTarget } = bpmForInterval(interval);
-    audio.setGrid(anchorBeat, interval / beatsPerTarget);
-  },
-
-  setMusic(on) {
-    this.musicOn = on; store.set('music', on);
-    audio.setMusic(on);
-    this.changed();
-  },
-
-  recenter() { this.recenterPending = true; },
-  exitVR() { const s = renderer.xr.getSession(); if (s) s.end(); },
-
-  changed() { ui.dirty = true; htmlUI.refresh(); },
-};
-
-const ui = new VRUI(scene, game);
-spawner.setSpeed(game.speed, 0);
-env.setAnchor(game.anchor);
-ui.placeFor(game.anchor, false);
-
 // ---------------------------------------------------------------- clock (audio-locked, smoothed)
 const clock = {
   offset: null,
@@ -124,6 +50,109 @@ const clock = {
     return perf + this.offset;
   },
 };
+
+// ---------------------------------------------------------------- game state
+const RESUME_LEAD = 0.8; // seconds of breathing room added when resuming
+
+const game = {
+  state: 'menu',
+  speed: Math.min(SPEED.max, Math.max(SPEED.min, store.get('speed', SPEED.default))),
+  musicOn: store.get('music', true),
+  sceneCfg: { theme: 'city', haze: 1, reflections: true, ...store.get('scene', {}) },
+  best: store.get('best', { score: 0, chain: 0 }),
+  anchor: new THREE.Vector3(0, 1.6, 0),
+  recenterPending: false,
+  pausedAt: 0,
+  scoring, spawner, audio,
+
+  get running() { return this.state !== 'menu'; },
+
+  async play() {
+    if (this.state !== 'menu') return;
+    await audio.resume();
+    audio.setMusic(this.musicOn);
+    const now = clock.now();
+    scoring.start(now);
+    spawner.anchor.copy(this.anchor);
+    this.syncMusic(spawner.start(now, this.speed));
+    audio.start();
+    this.setState('playing');
+  },
+
+  pause() {
+    if (this.state !== 'playing') return;
+    this.pausedAt = clock.now();
+    audio.stop();
+    spawner.setVisible(false);
+    this.setState('paused');
+  },
+
+  async resume() {
+    if (this.state !== 'paused') return;
+    await audio.resume();
+    const d = clock.now() - this.pausedAt + RESUME_LEAD;
+    spawner.shift(d);
+    scoring.startTime += d;
+    spawner.setVisible(true);
+    this.syncMusic(spawner.nextHit);
+    audio.start();
+    this.setState('playing');
+  },
+
+  toMenu() {
+    if (this.state === 'menu') return;
+    const now = this.state === 'paused' ? this.pausedAt : clock.now();
+    spawner.stop();
+    scoring.stop(now);
+    audio.stop();
+    if (scoring.score > this.best.score || scoring.longest > this.best.chain) {
+      this.best = { score: Math.max(scoring.score, this.best.score), chain: Math.max(scoring.longest, this.best.chain) };
+      store.set('best', this.best);
+    }
+    this.setState('menu');
+  },
+
+  setState(s) {
+    this.state = s;
+    ui.syncPage();
+    this.changed();
+  },
+
+  // Session clock for the HUD (frozen while paused).
+  sessionTime(now) { return this.state === 'paused' ? this.pausedAt - scoring.startTime : scoring.duration(now); },
+  multiplier() { return (1 + Math.min(scoring.streak, 20) * 0.05).toFixed(2).replace(/\.?0+$/, ''); },
+
+  setSpeed(s) {
+    this.speed = Math.min(SPEED.max, Math.max(SPEED.min, Math.round(s * 10) / 10));
+    store.set('speed', this.speed);
+    const anchorBeat = spawner.setSpeed(this.speed, clock.now());
+    if (this.state === 'playing') this.syncMusic(anchorBeat);
+    this.changed();
+  },
+
+  syncMusic(anchorBeat) {
+    const interval = intervalFor(this.speed);
+    const { beatsPerTarget } = bpmForInterval(interval);
+    audio.setGrid(anchorBeat, interval / beatsPerTarget);
+  },
+
+  setMusic(on) { this.musicOn = on; store.set('music', on); audio.setMusic(on); this.changed(); },
+  setTheme(t) { this.sceneCfg.theme = t; env.setTheme(t); this.saveScene(); },
+  setHaze(h) { this.sceneCfg.haze = h; env.setHaze(h); this.saveScene(); },
+  setReflections(on) { this.sceneCfg.reflections = on; env.setReflections(on); this.saveScene(); },
+  saveScene() { store.set('scene', this.sceneCfg); this.changed(); },
+
+  recenter() { this.recenterPending = true; },
+  exitVR() { const s = renderer.xr.getSession(); if (s) s.end(); },
+
+  changed() { ui.dirty = true; htmlUI.refresh(); },
+};
+
+const ui = new VRUI(scene, game);
+spawner.setSpeed(game.speed, 0);
+env.setTheme(game.sceneCfg.theme); env.setHaze(game.sceneCfg.haze); env.setReflections(game.sceneCfg.reflections);
+env.setAnchor(game.anchor);
+ui.placeFor(game.anchor);
 
 // ---------------------------------------------------------------- gameplay events
 spawner.onHit = (t, { accuracy, power, form, fist }) => {
@@ -152,6 +181,7 @@ spawner.onWrong = (t, fist) => {
 // ---------------------------------------------------------------- XR session
 rig.onSelectStart = (slot) => ui.selectStart(slot);
 rig.onSelectEnd = (slot) => ui.selectEnd(slot);
+rig.onBack = () => (game.state === 'playing' ? game.pause() : game.state === 'paused' ? game.resume() : null);
 
 async function enterVR() {
   if (!navigator.xr) return;
@@ -162,12 +192,16 @@ async function enterVR() {
   await renderer.xr.setSession(session);
   game.recenterPending = true;
   document.body.classList.add('in-vr');
+  // Meta button / system menu / headset off → pause; the pause menu is waiting on return.
+  session.addEventListener('visibilitychange', () => {
+    if (session.visibilityState !== 'visible') game.pause();
+  });
   session.addEventListener('end', () => {
     document.body.classList.remove('in-vr');
-    game.stop();
-    camera.position.copy(DESKTOP_CAM.pos); camera.lookAt(DESKTOP_CAM.look);
+    game.pause();
     game.anchor.set(0, 1.6, 0); spawner.anchor.copy(game.anchor); env.setAnchor(game.anchor);
-    ui.placeFor(game.anchor, false);
+    ui.placeFor(game.anchor);
+    fitDesktopCamera();
   });
 }
 
@@ -177,7 +211,7 @@ function applyRecenter(xrCam) {
   game.anchor.copy(p);
   spawner.anchor.copy(p);
   env.setAnchor(p);
-  ui.placeFor(p, game.running);
+  ui.placeFor(p);
   return true;
 }
 
@@ -189,19 +223,20 @@ function frame() {
   const now = clock.now();
   const xr = renderer.xr.isPresenting;
   const viewCam = xr ? renderer.xr.getCamera() : camera;
+  const playing = game.state === 'playing';
 
   if (xr) {
     if (game.recenterPending && applyRecenter(viewCam)) game.recenterPending = false;
     rig.update(now, dt);
-    ui.pointerUpdate(rig);
   }
+  ui.menu.mesh.visible = xr && !playing;
+  ui.mini.mesh.visible = xr && playing;
+  ui.hud.mesh.visible = xr && game.running;
+  if (xr) ui.pointerUpdate(rig);
 
-  spawner.update(now, dt, xr ? rig.fists : null, viewCam);
+  if (playing) spawner.update(now, dt, xr ? rig.fists : null, viewCam);
   fx.update(dt, viewCam);
-  env.update(dt, game.running ? TUNING.spawnDistance / spawner.travel : 0.6);
-  ui.menu.mesh.visible = xr && (!game.running || game.menuOpen);
-  ui.mini.mesh.visible = xr && game.running;
-  ui.hud.mesh.visible = xr;
+  env.update(dt, playing ? TUNING.spawnDistance / spawner.travel : game.state === 'menu' ? 1.2 : 0);
   ui.update(now);
   htmlUI.tick(now);
 
@@ -216,14 +251,18 @@ function fitDesktopCamera() {
 fitDesktopCamera();
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
-  fitDesktopCamera();
   camera.updateProjectionMatrix();
+  fitDesktopCamera();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+document.addEventListener('visibilitychange', () => { if (document.hidden) game.pause(); });
 
-// ---------------------------------------------------------------- HTML UI (desktop / phone / pre-VR)
+// ---------------------------------------------------------------- web UI (desktop / phone / pre-VR)
 const $ = (id) => document.getElementById(id);
 const htmlUI = {
+  page: 'main',
+  settingsReturn: 'main',
+
   init() {
     const slider = $('speed');
     slider.addEventListener('input', () => game.setSpeed(tToSpeed(slider.value / 1000)));
@@ -231,41 +270,38 @@ const htmlUI = {
     $('speedPlus').onclick = () => game.setSpeed(game.speed + 0.1);
     $('speedReset').onclick = () => game.setSpeed(1);
     $('music').onclick = () => game.setMusic(!game.musicOn);
-    $('startStop').onclick = () => (game.running ? game.stop() : game.start());
+    $('refl').onclick = () => game.setReflections(!game.sceneCfg.reflections);
+    document.querySelectorAll('[data-theme]').forEach((b) => (b.onclick = () => game.setTheme(b.dataset.theme)));
+    document.querySelectorAll('[data-haze]').forEach((b) => (b.onclick = () => game.setHaze(Number(b.dataset.haze))));
 
-    // Action pads (keyboard legend + touch input)
+    $('playBtn').onclick = () => game.play();
+    $('mainSettings').onclick = () => this.show('settings', 'main');
+    $('pauseSettings').onclick = () => this.show('settings', 'pause');
+    $('settingsDone').onclick = () => this.show(this.settingsReturn);
+    $('continueBtn').onclick = () => game.resume();
+    $('menuBtn').onclick = () => game.toMenu();
+    $('pauseBtn').onclick = () => game.pause();
+
+    // Touch pads (phones/tablets only)
     const pads = $('pads');
-    const order = ['L_UPPER', 'L_HOOK', 'JAB', 'CROSS', 'R_HOOK', 'R_UPPER'];
-    for (const id of order) {
+    for (const id of ['L_UPPER', 'L_HOOK', 'JAB', 'CROSS', 'R_HOOK', 'R_UPPER']) {
       const a = ACTIONS[id];
       const b = document.createElement('button');
       b.className = 'pad'; b.style.setProperty('--c', hex(a.color));
-      b.innerHTML = `<b>${a.label}</b><kbd>${a.key}</kbd>`;
+      b.innerHTML = `<b>${a.label}</b>`;
       b.addEventListener('pointerdown', (e) => { e.preventDefault(); punch(id); });
       pads.appendChild(b);
       a.pad = b;
     }
-    for (const seq of document.querySelectorAll('.seqchips')) {
-      SEQUENCE.forEach((id, i) => {
-        const a = ACTIONS[id]; const s = document.createElement('span');
-        s.className = 'chip'; s.style.setProperty('--c', hex(a.color)); s.textContent = a.label; s.dataset.i = i;
-        seq.appendChild(s);
-      });
-    }
+    SEQUENCE.forEach((id) => {
+      const a = ACTIONS[id]; const s = document.createElement('span');
+      s.className = 'chip'; s.style.setProperty('--c', hex(a.color)); s.textContent = a.label;
+      $('startSeq').appendChild(s);
+    });
 
-    // Settings drawer
-    const openSettings = (open) => document.body.classList.toggle('settings-open', open);
-    $('gear').onclick = () => openSettings(!document.body.classList.contains('settings-open'));
-    $('openSettings').onclick = () => openSettings(true);
-    $('closeSettings').onclick = () => openSettings(false);
-    this.openSettings = openSettings;
-    $('playWeb').onclick = () => game.start();
-    $('stopBtn').onclick = () => game.stop();
-
-    // VR availability: show the ENTER VR buttons only where an immersive session is possible.
-    const tryVR = () => { openSettings(false); enterVR().catch((e) => alert('Could not start VR: ' + e.message)); };
+    // VR availability: show ENTER VR only where an immersive session is possible.
+    const tryVR = () => enterVR().catch((e) => alert('Could not start VR: ' + e.message));
     $('enterVR').onclick = tryVR;
-    $('vrPill').onclick = tryVR;
     const note = $('vrNote');
     if (!window.isSecureContext) {
       note.textContent = 'VR needs HTTPS — open the GitHub Pages link in the Meta Quest Browser.';
@@ -273,43 +309,63 @@ const htmlUI = {
       note.textContent = 'To play in VR, open this page in the Meta Quest Browser on your headset.';
     } else {
       navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
-        $('enterVR').hidden = !ok; $('vrPill').hidden = !ok;
-        if (ok) { $('playWeb').textContent = '▶ PLAY ON SCREEN'; note.textContent = 'Stand in a clear space · hands or controllers'; }
-        else note.textContent = 'No VR headset detected — play with keyboard/touch, or open this page in the Meta Quest Browser.';
+        $('enterVR').hidden = !ok;
+        document.body.classList.toggle('vr-ready', ok);
+        if (ok) { $('playBtn').textContent = 'PLAY ON SCREEN'; note.textContent = 'Stand in a clear space · hand-tracking or controllers'; }
+        else note.textContent = 'No VR headset detected — play with the keyboard or touch, or open this page in the Meta Quest Browser.';
       }).catch(() => {});
     }
     this.refresh();
   },
 
+  show(page, from) {
+    if (from) this.settingsReturn = from;
+    this.page = page;
+    $('overlay').dataset.page = page;
+  },
+
   refresh() {
+    const st = game.state;
+    document.body.dataset.state = st;
+    if (st === 'playing') this.page = 'none';
+    else if (this.page === 'settings') this.settingsReturn = st === 'paused' ? 'pause' : 'main';
+    else this.page = st === 'paused' ? 'pause' : 'main';
+    $('overlay').dataset.page = this.page;
+
     $('speed').value = Math.round(speedToT(game.speed) * 1000);
     $('speedVal').textContent = `${game.speed.toFixed(1)}×`;
     $('speedSub').textContent = `${(3 / game.speed).toFixed(2)} s per target`;
-    $('music').textContent = `♪ Music: ${game.musicOn ? 'ON' : 'OFF'}`;
+    $('music').textContent = `♪ Music ${game.musicOn ? 'ON' : 'OFF'}`;
     $('music').classList.toggle('on', game.musicOn);
-    $('startStop').textContent = game.running ? '■ STOP SESSION' : '▶ START SESSION';
-    $('startStop').classList.toggle('stop', game.running);
-    document.body.classList.toggle('running', game.running);
-    $('speedBadge').textContent = `${game.speed.toFixed(1)}×`;
-    $('musicBadge').textContent = game.musicOn ? 'ON' : 'OFF';
-    $('best').textContent = `Best: ${game.best.score} pts · chain ${game.best.chain}`;
+    $('refl').textContent = `Reflections ${game.sceneCfg.reflections ? 'ON' : 'OFF'}`;
+    $('refl').classList.toggle('on', game.sceneCfg.reflections);
+    document.querySelectorAll('[data-theme]').forEach((b) => b.classList.toggle('on', b.dataset.theme === game.sceneCfg.theme));
+    document.querySelectorAll('[data-haze]').forEach((b) => b.classList.toggle('on', Number(b.dataset.haze) === game.sceneCfg.haze));
+    $('best').textContent = `Best ${game.best.score} pts · chain ${game.best.chain} · Speed ${game.speed.toFixed(1)}×`;
     const sc = scoring;
-    $('summary').textContent = !game.running && sc.hits + sc.misses + sc.mistakes > 0
-      ? `Last session — ${sc.score} pts · longest chain ${sc.longest} · ${sc.hitRatePct}% hits · accuracy ${sc.accuracyPct}% · power ${sc.powerPct}% · ${fmtTime(sc.elapsed)}`
+    $('summary').textContent = st === 'menu' && sc.hits + sc.misses + sc.mistakes > 0
+      ? `Last session — ${sc.score} pts · longest chain ${sc.longest} · ${sc.hitRatePct}% hits · ${fmtTime(sc.elapsed)}`
       : '';
+    $('pauseStats').textContent = `${sc.score} pts · streak ${sc.streak} · chain ${sc.longest}`;
+    this.lastKey = '';
   },
 
   lastKey: '',
   tick(now) {
-    const key = `${scoring.score}|${scoring.streak}|${scoring.longest}|${Math.floor(scoring.duration(now))}|${spawner.nextIndex()}|${game.running}`;
+    if (!game.running) return;
+    const nextIdx = spawner.running ? spawner.nextIndex() : 0;
+    const t = fmtTime(game.sessionTime(now));
+    const key = `${scoring.score}|${scoring.streak}|${scoring.longest}|${t}|${nextIdx}`;
     if (key === this.lastKey) return;
     this.lastKey = key;
-    $('hScore').textContent = scoring.score;
+    $('hScore').textContent = scoring.score.toLocaleString();
     $('hStreak').textContent = scoring.streak;
+    $('hMult').textContent = `×${game.multiplier()}`;
     $('hLongest').textContent = scoring.longest;
-    $('hTime').textContent = fmtTime(scoring.duration(now));
-    document.querySelectorAll('#hudSeq .chip').forEach((c) =>
-      c.classList.toggle('next', game.running && Number(c.dataset.i) === spawner.nextIndex()));
+    $('hTime').textContent = t;
+    const a = ACTIONS[SEQUENCE[nextIdx]];
+    $('hNext').textContent = a.label;
+    $('hNext').style.color = hex(a.color);
   },
 
   flash(color, bad = false) {
@@ -321,7 +377,7 @@ const htmlUI = {
 };
 
 function punch(actionId) {
-  if (!game.running) return;
+  if (game.state !== 'playing') return;
   const a = ACTIONS[actionId];
   if (a.pad) { a.pad.classList.remove('hit'); void a.pad.offsetWidth; a.pad.classList.add('hit'); }
   spawner.keyPunch(actionId, clock.now());
@@ -331,13 +387,22 @@ const KEYMAP = Object.fromEntries(Object.values(ACTIONS).map((a) => [a.key.toLow
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
-  if (k === ' ') { e.preventDefault(); game.running ? game.stop() : game.start(); return; }
-  if (k === 'escape') { htmlUI.openSettings(!document.body.classList.contains('settings-open')); return; }
+  if (k === ' ' || k === 'enter') {
+    if (game.state === 'menu' && htmlUI.page === 'main') { e.preventDefault(); game.play(); }
+    else if (game.state === 'paused' && htmlUI.page === 'pause') { e.preventDefault(); game.resume(); }
+    return;
+  }
+  if (k === 'escape' || k === 'p') {
+    if (game.state === 'playing') game.pause();
+    else if (htmlUI.page === 'settings') htmlUI.show(htmlUI.settingsReturn);
+    else if (game.state === 'paused') game.resume();
+    return;
+  }
   if (KEYMAP[k]) punch(KEYMAP[k]);
 });
 
 htmlUI.init();
-window.boxflow = { game, spawner, scoring, clock, frame, ui }; // handy for debugging in the console
+window.boxflow = { game, spawner, scoring, clock, frame, ui, env }; // handy for debugging in the console
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});

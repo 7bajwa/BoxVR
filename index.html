@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>BOXFLOW</title>
   <meta name="description" content="BOXFLOW — an infinite boxing-sequence rhythm trainer for Meta Quest 3 (WebXR) and the browser.">
-  <meta name="theme-color" content="#05060d">
+  <meta name="theme-color" content="#0e2a4a">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -14,73 +14,72 @@
     { "imports": { "three": "./vendor/three.module.js" } }
   </script>
 </head>
-<body>
+<body data-state="menu">
   <div id="stage"></div>
   <div id="flash"></div>
 
-  <!-- In-game HUD (only while playing) -->
-  <header id="hud">
-    <div class="stats">
-      <div><small>SCORE</small><span id="hScore">0</span></div>
-      <div><small>STREAK</small><span id="hStreak" class="g">0</span></div>
-      <div><small>LONGEST CHAIN</small><span id="hLongest" class="y">0</span></div>
-      <div><small>TIME</small><span id="hTime" class="c">00:00</span></div>
-    </div>
-    <div class="seqchips" id="hudSeq"></div>
-  </header>
+  <!-- Playing: pause button + bottom HUD strip -->
+  <button id="pauseBtn" class="round" aria-label="Pause">❚❚</button>
 
-  <!-- Always-available corner controls -->
-  <div id="corner">
-    <button id="vrPill" class="pill vr" hidden>🥽 VR</button>
-    <button id="stopBtn" class="pill stop">■ Stop</button>
-    <button id="gear" class="pill icon" aria-label="Settings">⚙</button>
-  </div>
+  <footer id="hud">
+    <div class="cell big"><small>SCORE</small><span id="hScore">0</span></div>
+    <div class="cell"><small>STREAK</small><span id="hStreak" class="g">0</span><em id="hMult">×1</em></div>
+    <div class="cell"><small>NEXT</small><span id="hNext">R UPPER</span></div>
+    <div class="cell"><small>LONGEST CHAIN</small><span id="hLongest" class="y">0</span></div>
+    <div class="cell"><small>TIME</small><span id="hTime" class="c">00:00</span></div>
+  </footer>
+  <nav id="pads"></nav>
 
-  <!-- Start screen -->
-  <main id="startScreen">
-    <h1>BOXFLOW</h1>
-    <p class="tag">Infinite boxing-sequence rhythm trainer</p>
-    <button id="enterVR" class="big vr" hidden>🥽 ENTER VR</button>
-    <button id="playWeb" class="big play">▶ PLAY IN BROWSER</button>
-    <p id="vrNote" class="note"></p>
-    <div class="seqchips" id="startSeq"></div>
-    <p id="summary"></p>
-    <p id="best"></p>
-    <button id="openSettings" class="link">⚙ Settings · Speed <span id="speedBadge">1.0×</span> · Music <span id="musicBadge">ON</span></button>
-  </main>
+  <!-- Menus -->
+  <div id="overlay" data-page="main">
 
-  <!-- Settings drawer -->
-  <aside id="settings" aria-hidden="true">
-    <div class="drawer-head">
-      <h2>Settings</h2>
-      <button id="closeSettings" class="pill icon" aria-label="Close">✕</button>
-    </div>
-
-    <section>
-      <div class="row"><label for="speed">Speed</label><strong id="speedVal">1.0×</strong></div>
-      <div class="slider">
-        <button id="speedMinus" aria-label="Slower">−</button>
-        <input id="speed" type="range" min="0" max="1000" step="1" aria-label="Speed (0.1× to 10×)">
-        <button id="speedPlus" aria-label="Faster">+</button>
-      </div>
-      <div class="row sub"><span>0.1×</span><span id="speedSub">3.00 s per target</span><button id="speedReset">1×</button><span>10×</span></div>
+    <section class="card" id="mainCard">
+      <h1>BOXFLOW</h1>
+      <p class="tag">Infinite boxing-sequence rhythm trainer</p>
+      <button id="enterVR" class="btn primary vr" hidden>ENTER VR</button>
+      <button id="playBtn" class="btn primary">PLAY</button>
+      <button id="mainSettings" class="btn">SETTINGS</button>
+      <p id="vrNote" class="note"></p>
+      <div class="seqchips" id="startSeq"></div>
+      <p id="summary" class="note"></p>
+      <p id="best" class="note dim"></p>
+      <p class="keys dim">Keys: <kbd>S</kbd><kbd>D</kbd><kbd>F</kbd> left upper · hook · jab — <kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> right cross · hook · upper — <kbd>Esc</kbd> pause</p>
     </section>
 
-    <button id="music" class="toggle">♪ Music: ON</button>
-    <button id="startStop" class="start">▶ START SESSION</button>
+    <section class="card" id="pauseCard">
+      <h1 class="small">PAUSED</h1>
+      <p id="pauseStats" class="tag"></p>
+      <button id="continueBtn" class="btn primary">CONTINUE</button>
+      <button id="pauseSettings" class="btn">SETTINGS</button>
+      <button id="menuBtn" class="btn danger">MAIN MENU</button>
+    </section>
 
-    <details>
-      <summary>How to play</summary>
-      <ul>
-        <li><b>Quest 3:</b> open this page in the Meta Quest Browser and tap <b>ENTER VR</b>. Use hand-tracking (make fists) or Touch controllers. Point and pinch (or pull the trigger) at the floating menu to start.</li>
-        <li>Punch each glowing target with the <b>matching hand</b> as it reaches the gate. Straights go forward, hooks sweep sideways (follow the chevrons), uppercuts drive upward.</li>
-        <li>Score = timing accuracy + punch power, multiplied by your streak. Misses and wrong-hand punches break the chain.</li>
-        <li><b>Browser:</b> keys <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> (left: upper, hook, jab) and <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> (right: cross, hook, upper). <kbd>Space</kbd> starts/stops, <kbd>Esc</kbd> opens settings. On phones tap the pads.</li>
-      </ul>
-    </details>
-  </aside>
-
-  <nav id="pads"></nav>
+    <section class="card" id="settingsCard">
+      <h2>Settings</h2>
+      <div class="group">
+        <div class="row"><label for="speed">Speed</label><strong id="speedVal">1.0×</strong></div>
+        <div class="slider">
+          <button id="speedMinus" aria-label="Slower">−</button>
+          <input id="speed" type="range" min="0" max="1000" step="1" aria-label="Speed (0.1× to 10×)">
+          <button id="speedPlus" aria-label="Faster">+</button>
+        </div>
+        <div class="row sub"><span>0.1×</span><span id="speedSub">3.00 s per target</span><button id="speedReset">1×</button><span>10×</span></div>
+      </div>
+      <div class="group two">
+        <button id="music" class="seg">♪ Music ON</button>
+        <button id="refl" class="seg">Reflections ON</button>
+      </div>
+      <div class="group">
+        <label>Scene</label>
+        <div class="segs"><button class="seg" data-theme="city">Neon City</button><button class="seg" data-theme="minimal">Minimal</button></div>
+      </div>
+      <div class="group">
+        <label>Haze</label>
+        <div class="segs"><button class="seg" data-haze="0">Low</button><button class="seg" data-haze="1">Medium</button><button class="seg" data-haze="2">High</button></div>
+      </div>
+      <button id="settingsDone" class="btn primary">DONE</button>
+    </section>
+  </div>
 
   <script type="module" src="js/main.js"></script>
 </body>

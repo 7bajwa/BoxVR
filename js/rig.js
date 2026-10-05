@@ -62,6 +62,7 @@ export class VRRig {
     this.slots = [];
     this.onSelectStart = null; // (slot) => void
     this.onSelectEnd = null;
+    this.onBack = null;        // B / Y pressed (controllers)
 
     const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
 
@@ -100,6 +101,12 @@ export class VRRig {
       const src = slot.inputSource;
       const fist = src && this.fists[src.handedness];
       if (!fist) continue;
+
+      // B (right) / Y (left) = back / pause. xr-standard mapping: buttons[5].
+      const gp = src.gamepad;
+      const back = !!(gp && gp.buttons && gp.buttons[5] && gp.buttons[5].pressed);
+      if (back && !slot.backDown && this.onBack) this.onBack();
+      slot.backDown = back;
 
       let ok = false;
       if (src.hand) {

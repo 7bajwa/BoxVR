@@ -21,23 +21,28 @@ To change the combo, edit `SEQUENCE` in [js/config.js](js/config.js).
 
 ## Playing
 
-**Quest 3:** open the GitHub Pages URL in the Meta Quest Browser and tap the big **🥽 ENTER VR** button.
+**Quest 3:** open the GitHub Pages URL in the Meta Quest Browser and tap **ENTER VR**.
 The button appears only when a headset is detected, which needs HTTPS (GitHub Pages provides it).
-Play with hand-tracking (make fists) or Touch controllers. Point and pinch (or pull the trigger) at the floating menu and press **START SESSION**.
-While you play, the menu hides. A small **⚙ Settings / ■ Stop** bar floats low on your left.
+- **Main menu** (floats in front of you): **Play**, **Settings**, **Exit VR**. Point and pinch, or pull the trigger.
 - Punch each target with the matching hand as it reaches the gate. Shrinking approach rings show the timing.
-- Chevrons on a target show the direction: sideways for hooks, upward for uppercuts. A dot means a straight punch.
-- Use **Recenter** in the menu to move the lane to where you're standing. To reset which way you face, hold the Meta button.
+  Chevrons on a target show the direction: sideways for hooks, upward for uppercuts. A dot means a straight punch.
+- The **HUD** is a thin strip low in front of you: score, streak with multiplier, next move, longest chain and time.
+- **Pause:** press **B / Y**, aim at the small ❚❚ button low on your left, or press the Meta button.
+  Leaving VR or opening the system menu always pauses, so the **Continue / Settings / Main Menu** panel is waiting when you come back.
+- **Recenter** is in Settings and the pause menu. It moves the lane to where you're standing.
 
 **Browser / phone:** keys `S` `D` `F` throw left uppercut, hook and jab. `J` `K` `L` throw right cross, hook and uppercut.
-`Space` starts or stops. On phones, tap the colored pads.
+`Esc` pauses, and `Space` plays or continues. On phones, tap the colored pads.
 
 ## Settings
 
 - **Speed** goes from 0.1× to 10×. At 1×, one target arrives every 3 s; at N×, one arrives every 3/N s.
-  The slider is logarithmic, the −/+ buttons step by 0.1, and the setting is saved.
-- **Music** turns the background track on or off. The track is generated in the browser and locks its tempo to the target beat at every speed (1× = 160 BPM, 8 beats per target).
-- **Start / Stop Session**
+  The slider is logarithmic, and the −/+ buttons step by 0.1.
+- **Music** turns the background track on or off. The track is generated in the browser and locks its tempo to the target beat at every speed.
+- **Scene:** *Neon City* (a hazy skyline that fades into a glowing horizon) or *Minimal* (a few distant monoliths).
+- **Haze:** Low / Medium / High. **Reflections:** wet-floor mirror, on or off (turn it off for extra performance).
+
+All settings are saved on the device.
 
 ## Scoring
 
