@@ -1,0 +1,11 @@
+{
+  "name": "Foghorn Point",
+  "description": "A lighthouse sweeps the fog over a restless sea",
+  "module": "scene.js",
+  "target": "orb",
+  "effect": "mist",
+  "music": "tidal-light",
+  "ambient": "ocean",
+  "gateColor": "#ffe7a0",
+  "colors": ["#2c4f52", "#0d1a22"]
+}

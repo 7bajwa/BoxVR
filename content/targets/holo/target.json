@@ -1,0 +1,5 @@
+{
+  "name": "Holo Core",
+  "module": "target.js",
+  "sfx": "zap"
+}

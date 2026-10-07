@@ -1,163 +1,165 @@
-// BOXFLOW — holographic target prefab. One Target instance is pooled and reused.
+// BOXFLOW — target framework. A target style (content/targets/<id>) supplies only the BODY;
+// the framework adds what every target needs: dark backplate (contrast against haze), action
+// colour glow + ring, a clear direction marker, label, approach ring, fades and tints.
 import * as THREE from 'three';
 import { ACTIONS, hex } from './config.js';
+import * as kit from './kit.js';
 
-const holoVert = /* glsl */`
-  varying vec3 vN; varying vec3 vV; varying vec3 vW;
-  void main() {
-    vec4 wp = modelMatrix * vec4(position, 1.0);
-    vW = wp.xyz;
-    vN = normalize(mat3(modelMatrix) * normal);
-    vV = normalize(cameraPosition - wp.xyz);
-    gl_Position = projectionMatrix * viewMatrix * wp;
-  }`;
-const holoFrag = /* glsl */`
-  uniform vec3 uColor; uniform float uTime; uniform float uOpacity; uniform float uFlash;
-  varying vec3 vN; varying vec3 vV; varying vec3 vW;
-  void main() {
-    float fres = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0);
-    float scan = 0.55 + 0.45 * sin(vW.y * 90.0 - uTime * 8.0);
-    float a = (0.18 + fres * 0.95) * (0.75 + 0.25 * scan);
-    vec3 col = mix(uColor, vec3(1.0), fres * 0.35 + uFlash);
-    gl_FragColor = vec4(col * (1.0 + uFlash * 2.0), a * uOpacity);
-  }`;
-
-let glowTex = null;
-export function getGlowTexture() {
-  if (glowTex) return glowTex;
-  const c = document.createElement('canvas'); c.width = c.height = 128;
-  const g = c.getContext('2d');
-  const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grd.addColorStop(0, 'rgba(255,255,255,1)');
-  grd.addColorStop(0.25, 'rgba(255,255,255,0.45)');
-  grd.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
-  glowTex = new THREE.CanvasTexture(c);
-  glowTex.colorSpace = THREE.SRGBColorSpace;
-  return glowTex;
-}
-
-export function makeTextSprite(text, color = '#ffffff', { size = 64, width = 512, height = 128, scale = 0.32, weight = 800 } = {}) {
-  const c = document.createElement('canvas'); c.width = width; c.height = height;
-  const g = c.getContext('2d');
-  g.font = `${weight} ${size}px "Segoe UI", system-ui, sans-serif`;
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.shadowColor = color; g.shadowBlur = 18;
-  g.fillStyle = color; g.fillText(text, width / 2, height / 2);
-  g.shadowBlur = 0; g.fillStyle = '#ffffff'; g.globalAlpha = 0.85; g.fillText(text, width / 2, height / 2);
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
-  const s = new THREE.Sprite(mat);
-  s.scale.set(scale * (width / height), scale, 1);
-  return s;
-}
-
-// Chevron arrow shape pointing +Y in its local space.
-function chevronGeometry() {
-  const s = new THREE.Shape();
-  s.moveTo(0, 0.09); s.lineTo(0.08, 0.0); s.lineTo(0.05, 0.0); s.lineTo(0, 0.05);
-  s.lineTo(-0.05, 0.0); s.lineTo(-0.08, 0.0); s.closePath();
-  return new THREE.ShapeGeometry(s);
-}
+export { glowTexture as getGlowTexture, textSprite as makeTextSprite } from './kit.js';
 
 const shared = {};
 function sharedGeo() {
-  if (shared.core) return shared;
-  shared.core = new THREE.IcosahedronGeometry(0.1, 2);
-  shared.ring = new THREE.TorusGeometry(0.16, 0.01, 8, 48);
-  shared.ring2 = new THREE.TorusGeometry(0.2, 0.004, 6, 48);
-  shared.chevron = chevronGeometry();
-  shared.dot = new THREE.CircleGeometry(0.035, 20);
+  if (shared.ring) return shared;
+  shared.ring = new THREE.TorusGeometry(0.17, 0.011, 8, 48);
+  const s = new THREE.Shape();
+  s.moveTo(0, 0.1); s.lineTo(0.09, 0.0); s.lineTo(0.055, 0.0); s.lineTo(0, 0.055);
+  s.lineTo(-0.055, 0.0); s.lineTo(-0.09, 0.0); s.closePath();
+  shared.chevron = new THREE.ShapeGeometry(s);
+  shared.dot = new THREE.RingGeometry(0.02, 0.045, 24);
+  shared.approach = new THREE.RingGeometry(0.18, 0.196, 48);
   return shared;
 }
 
+const GRAY = new THREE.Color(0x4a505c);
+
 export class Target {
-  constructor(actionId) {
+  // style = { meta, mod, glb? } from content.loadTarget()
+  constructor(actionId, style) {
     const a = ACTIONS[actionId];
     const geo = sharedGeo();
+    const meta = style.meta;
     this.action = a;
     this.color = new THREE.Color(a.color);
     this.group = new THREE.Group();
     this.group.name = `Target_${a.id}`;
+    this.mats = [];
+    this.sfx = meta.sfx || 'zap';
 
-    this.coreMat = new THREE.ShaderMaterial({
-      vertexShader: holoVert, fragmentShader: holoFrag,
-      uniforms: { uColor: { value: this.color }, uTime: { value: 0 }, uOpacity: { value: 1 }, uFlash: { value: 0 } },
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    });
-    this.core = new THREE.Mesh(geo.core, this.coreMat);
+    const add = (obj, order = 6) => { obj.renderOrder = order; this.group.add(obj); return obj; };
+    const basic = (op, color = this.color) => this.track(new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+    }));
 
-    const basic = (op) => new THREE.MeshBasicMaterial({
-      color: this.color, transparent: true, opacity: op, depthWrite: false,
-      blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-    });
-    this.ringMat = basic(0.95);
-    this.ring = new THREE.Mesh(geo.ring, this.ringMat);
-    this.ring2Mat = basic(0.5);
-    this.ring2 = new THREE.Mesh(geo.ring2, this.ring2Mat);
+    // Contrast backplate (normal blending, dark) so targets read against bright fog.
+    this.shadow = add(new THREE.Sprite(this.track(new THREE.SpriteMaterial({
+      map: kit.shadowTexture(), transparent: true, opacity: meta.backplate ?? 0.75, depthWrite: false, fog: false,
+    }))), 4);
+    this.shadow.scale.setScalar(0.62);
+    this.shadow.position.z = -0.06;
 
-    // Direction indicator: chevrons for hooks/uppercuts, a bright dot for straights.
+    this.glow = add(new THREE.Sprite(this.track(new THREE.SpriteMaterial({
+      map: kit.glowTexture(), color: this.color, transparent: true, opacity: meta.glow ?? 0.55,
+      depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+    }))), 5);
+    this.glow.scale.setScalar(meta.glowScale ?? 0.75);
+
+    // Body from the style plugin.
+    this.body = null;
+    const ctx = { THREE, kit, action: a, color: this.color.clone(), colorHex: a.color, meta };
+    if (style.mod && style.mod.create) this.body = style.mod.create(ctx);
+    else if (style.glb) {
+      const obj = style.glb.scene.clone(true);
+      obj.traverse((o) => { if (o.isMesh) o.material = o.material.clone(); });
+      obj.scale.setScalar(meta.scale ?? 1);
+      this.body = { object: obj };
+    }
+    if (this.body) {
+      add(this.body.object, 6);
+      this.body.object.traverse((o) => {
+        if (!o.material) return;
+        for (const m of [].concat(o.material)) { m.fog = false; m.needsUpdate = true; this.track(m); }
+        o.renderOrder = 6;
+      });
+    }
+
+    if (meta.ring !== false) {
+      this.ring = add(new THREE.Mesh(geo.ring, basic(0.95)));
+      this.ring.scale.setScalar(meta.ringScale ?? 1);
+    }
+
+    // Direction marker — what motion the punch must have.
     this.markMat = basic(1);
     this.mark = new THREE.Group();
     if (a.arrow === 'fwd') {
       this.mark.add(new THREE.Mesh(geo.dot, this.markMat));
     } else {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 3; i++) {
         const m = new THREE.Mesh(geo.chevron, this.markMat);
-        m.position.y = -0.03 + i * 0.06;
+        m.position.y = -0.07 + i * 0.065;
+        m.userData.i = i;
         this.mark.add(m);
       }
-      this.mark.rotation.z = a.arrow === 'up' ? 0 : a.arrow === 'left' ? Math.PI / 2 : -Math.PI / 2;
+      // hooks: chevrons sit on the side the punch comes FROM, pointing across; uppercuts: below, pointing up
+      if (a.arrow === 'up') { this.mark.position.set(0, -0.26, 0.02); }
+      else {
+        this.mark.rotation.z = a.arrow === 'left' ? Math.PI / 2 : -Math.PI / 2;
+        this.mark.position.set(a.arrow === 'left' ? 0.27 : -0.27, 0, 0.02);
+      }
     }
-    this.mark.position.z = 0.11;
+    if (a.arrow === 'fwd') this.mark.position.z = 0.14;
+    this.mark.traverse((o) => { o.renderOrder = 7; });
+    this.group.add(this.mark);
 
-    this.glowMat = new THREE.SpriteMaterial({
-      map: getGlowTexture(), color: this.color, transparent: true, opacity: 0.55,
-      depthWrite: false, blending: THREE.AdditiveBlending,
-    });
-    this.glow = new THREE.Sprite(this.glowMat);
-    this.glow.scale.setScalar(0.75);
+    this.label = add(kit.textSprite(a.label, hex(a.color), { scale: 0.085 }), 7);
+    this.track(this.label.material);
+    this.label.position.y = meta.labelY ?? 0.27;
 
-    this.label = makeTextSprite(a.label, hex(a.color), { scale: 0.09 });
-    this.label.position.y = 0.25;
+    // Approach ring (lives in world space at the hit zone).
+    this.ghost = new THREE.Mesh(geo.approach, new THREE.MeshBasicMaterial({
+      color: this.color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+    }));
+    this.ghost.renderOrder = 6;
+    this.ghost.visible = false;
 
-    this.group.add(this.glow, this.core, this.ring, this.ring2, this.mark, this.label);
     this.reset();
+  }
+
+  track(m) {
+    m.userData.baseOpacity ??= m.opacity ?? 1;
+    m.transparent = true;
+    if (m.color) m.userData.baseColor ??= m.color.clone();
+    this.mats.push(m);
+    return m;
   }
 
   reset() {
     this.active = false;
-    this.state = 'idle';   // idle | flying | hit | missed
-    this.hitTime = 0;
-    this.spawnTime = 0;
-    this.deadTime = 0;
+    this.state = 'idle';
     this.group.visible = false;
     this.group.scale.setScalar(1);
-    this.coreMat.uniforms.uFlash.value = 0;
+    this.ghost.visible = false;
     this.setOpacity(1);
+    this.setTint(false);
+    this.flash(0);
   }
 
-  setOpacity(o) {
-    this.coreMat.uniforms.uOpacity.value = o;
-    this.ringMat.opacity = 0.95 * o;
-    this.ring2Mat.opacity = 0.5 * o;
-    this.markMat.opacity = o;
-    this.glowMat.opacity = 0.55 * o;
-    this.label.material.opacity = o;
-  }
+  setOpacity(o) { for (const m of this.mats) m.opacity = m.userData.baseOpacity * o; }
 
   setTint(gray) {
-    const c = gray ? new THREE.Color(0x555a66) : this.color;
-    this.coreMat.uniforms.uColor.value = c;
-    this.ringMat.color.copy(c); this.ring2Mat.color.copy(c);
-    this.markMat.color.copy(c); this.glowMat.color.copy(c);
+    this.gray = gray;
+    if (this.body && this.body.tint) this.body.tint(gray);
+    for (const m of this.mats) if (m.color && m.userData.baseColor && m !== this.shadow.material) {
+      m.color.copy(m.userData.baseColor); if (gray) m.color.lerp(GRAY, 0.8);
+    }
+  }
+
+  flash(v) {
+    this.glow.material.opacity = this.glow.material.userData.baseOpacity * (1 + v * 2);
+    if (this.body && this.body.flash) this.body.flash(v);
   }
 
   update(t, dt) {
-    this.coreMat.uniforms.uTime.value = t;
-    this.ring.rotation.z += dt * 1.5;
-    this.ring2.rotation.z -= dt * 0.8;
-    const pulse = 1 + Math.sin(t * 10) * 0.04;
-    this.core.scale.setScalar(pulse);
+    if (this.ring) this.ring.rotation.z += dt * 1.5;
+    // chevrons ripple in the punch direction
+    for (const c of this.mark.children) if (c.userData.i !== undefined) {
+      c.material = this.markMat;
+      c.scale.setScalar(0.85 + 0.25 * Math.max(0, Math.sin(t * 9 - c.userData.i * 1.2)));
+    }
+    if (this.body && this.body.update) this.body.update(t, dt);
+  }
+
+  dispose() {
+    this.group.removeFromParent(); this.ghost.removeFromParent();
+    if (this.body && this.body.dispose) this.body.dispose();
   }
 }

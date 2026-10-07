@@ -1,0 +1,7 @@
+{
+  "scenes": ["neon-city", "halloween", "lighthouse", "deep-space"],
+  "targets": ["holo", "pumpkin", "orb", "crystal"],
+  "effects": ["neon-burst", "embers", "mist"],
+  "songs": ["neon-drive", "hyper-jab", "pumpkin-stomp", "tidal-light"],
+  "levels": ["neon-drive", "hyper-jab", "pumpkin-stomp", "tidal-light"]
+}

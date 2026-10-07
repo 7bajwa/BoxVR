@@ -1,0 +1,21 @@
+{
+  "name": "Pumpkin Stomp",
+  "song": "pumpkin-stomp",
+  "scene": "halloween",
+  "target": "pumpkin",
+  "effect": "embers",
+  "charts": {
+    "easy": {
+      "auto": "dynamic"
+    },
+    "normal": {
+      "auto": "dynamic"
+    },
+    "hard": {
+      "auto": "dynamic"
+    },
+    "expert": {
+      "auto": "dynamic"
+    }
+  }
+}

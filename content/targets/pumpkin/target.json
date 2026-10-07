@@ -1,0 +1,8 @@
+{
+  "name": "Jack-o'-Lantern",
+  "module": "target.js",
+  "sfx": "thud",
+  "ringScale": 1.08,
+  "glow": 0.45,
+  "labelY": 0.29
+}

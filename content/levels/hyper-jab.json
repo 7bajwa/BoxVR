@@ -1,0 +1,21 @@
+{
+  "name": "Hyper Jab",
+  "song": "hyper-jab",
+  "scene": "deep-space",
+  "target": "crystal",
+  "effect": "neon-burst",
+  "charts": {
+    "easy": {
+      "auto": "dynamic"
+    },
+    "normal": {
+      "auto": "dynamic"
+    },
+    "hard": {
+      "auto": "dynamic"
+    },
+    "expert": {
+      "auto": "dynamic"
+    }
+  }
+}

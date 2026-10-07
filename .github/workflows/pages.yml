@@ -25,7 +25,7 @@ jobs:
       - name: Assemble site
         run: |
           mkdir _site
-          cp -r index.html manifest.webmanifest sw.js .nojekyll css js vendor icons _site/
+          cp -r index.html editor.html manifest.webmanifest sw.js .nojekyll css js vendor icons content _site/
       - uses: actions/configure-pages@v5
         with:
           enablement: true   # turn Pages on (source: GitHub Actions) if it isn't yet

@@ -1,0 +1,167 @@
+{
+  "name": "Tidal Light",
+  "artist": "BOXFLOW Synth",
+  "license": "CC0 (procedural)",
+  "type": "synth",
+  "bpm": 116,
+  "progression": [
+    [
+      53,
+      57,
+      60,
+      64
+    ],
+    [
+      57,
+      60,
+      64,
+      67
+    ],
+    [
+      50,
+      53,
+      57,
+      60
+    ],
+    [
+      46,
+      50,
+      53,
+      57
+    ]
+  ],
+  "tracks": {
+    "kick": {
+      "inst": "kick",
+      "pattern": "x...x...x...x...",
+      "vol": 0.85
+    },
+    "clap": {
+      "inst": "clap",
+      "pattern": "....x.......x...",
+      "vol": 0.7
+    },
+    "shaker": {
+      "inst": "shaker",
+      "pattern": "xoxoxoxoxoxoxoxo",
+      "vol": 0.7
+    },
+    "openhat": {
+      "inst": "openhat",
+      "pattern": "..x...x...x...x.",
+      "vol": 0.8
+    },
+    "bass": {
+      "inst": "bass",
+      "pattern": "x..x..x...x..x..",
+      "notes": "root",
+      "octave": -1,
+      "cutoff": 420
+    },
+    "pad": {
+      "inst": "pad",
+      "pattern": "x...............",
+      "notes": "chord",
+      "len": 16,
+      "cutoff": 900,
+      "attack": 0.6
+    },
+    "pluck": {
+      "inst": "pluck",
+      "pattern": "x.xx.x.xx.x.x.xx",
+      "notes": "arp",
+      "octave": 1,
+      "wave": "triangle",
+      "cutoff": 2600
+    },
+    "bell": {
+      "inst": "bell",
+      "pattern": "x.......x...x...",
+      "notes": "seq",
+      "seq": [
+        12,
+        16,
+        19,
+        14,
+        12,
+        7
+      ],
+      "vol": 0.8
+    }
+  },
+  "sections": [
+    {
+      "name": "intro",
+      "bars": 8,
+      "intensity": 0,
+      "tracks": [
+        "pad",
+        "shaker",
+        "bell"
+      ]
+    },
+    {
+      "name": "groove",
+      "bars": 8,
+      "intensity": 1,
+      "tracks": [
+        "kick",
+        "openhat",
+        "shaker",
+        "bass",
+        "pad"
+      ]
+    },
+    {
+      "name": "main",
+      "bars": 16,
+      "intensity": 2,
+      "tracks": [
+        "kick",
+        "clap",
+        "openhat",
+        "shaker",
+        "bass",
+        "pad",
+        "pluck",
+        "bell"
+      ]
+    },
+    {
+      "name": "tide",
+      "bars": 8,
+      "intensity": 1,
+      "tracks": [
+        "pad",
+        "pluck",
+        "bell",
+        "shaker"
+      ]
+    },
+    {
+      "name": "main2",
+      "bars": 16,
+      "intensity": 2,
+      "tracks": [
+        "kick",
+        "clap",
+        "openhat",
+        "shaker",
+        "bass",
+        "pad",
+        "pluck",
+        "bell"
+      ]
+    },
+    {
+      "name": "outro",
+      "bars": 4,
+      "intensity": 0,
+      "tracks": [
+        "pad",
+        "bell"
+      ]
+    }
+  ],
+  "loopSection": "main"
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Light Orb",
+  "module": "target.js",
+  "sfx": "chime",
+  "glow": 0.7,
+  "glowScale": 0.95,
+  "ringScale": 0.95
+}

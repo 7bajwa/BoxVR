@@ -1,0 +1,11 @@
+{
+  "name": "Neon City",
+  "description": "Hazy cyber avenue melting into a glowing horizon",
+  "module": "scene.js",
+  "target": "holo",
+  "effect": "neon-burst",
+  "music": "neon-drive",
+  "ambient": "rain",
+  "gateColor": "#8ff6ff",
+  "colors": ["#1b4b8a", "#3b1b6b"]
+}

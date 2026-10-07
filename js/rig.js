@@ -2,7 +2,7 @@
 // Each hand is a "Fist": world position, smoothed velocity, peak speed (power),
 // a glowing glove visual, a UI pointer ray, and haptics when a controller is held.
 import * as THREE from 'three';
-import { getGlowTexture } from './target.js';
+import { glowTexture as getGlowTexture } from './kit.js';
 
 const HAND_JOINT = 'middle-finger-metacarpal'; // center of the knuckles ≈ punch contact point
 const _tmp = new THREE.Vector3();
@@ -17,7 +17,7 @@ class Fist {
     this.tracked = false;
     this.source = null;     // 'hand' | 'controller'
     this.gamepad = null;
-    this.history = [];      // [{t, speed}]
+    this.history = [];      // [{t, speed, p}] — last ~0.7 s
     this.wasTracked = false;
 
     const col = handedness === 'left' ? 0x9be7ff : 0xffb3c4;
@@ -44,12 +44,24 @@ class Fist {
     return m;
   }
 
+  // How far the fist travelled along `dir` during this punch: from the most pulled-back
+  // point in the last 0.6 s to now. A tap ≈ 0.05 m, a full extension ≈ 0.4–0.5 m.
+  swingAlong(dir, now) {
+    const cur = this.position.dot(dir);
+    let min = cur;
+    for (const h of this.history) if (now - h.t < 0.6) min = Math.min(min, h.p.dot(dir));
+    return Math.max(0, cur - min);
+  }
+
   pulse(intensity = 0.35, ms = 60) {
     const gp = this.gamepad;
     if (!gp) return;
     try {
+      intensity = Math.min(1, Math.max(0, intensity));
+      if (gp.vibrationActuator && gp.vibrationActuator.playEffect) {
+        gp.vibrationActuator.playEffect('dual-rumble', { duration: ms, strongMagnitude: intensity, weakMagnitude: intensity });
+      }
       if (gp.hapticActuators && gp.hapticActuators[0]) gp.hapticActuators[0].pulse(intensity, ms);
-      else if (gp.vibrationActuator) gp.vibrationActuator.playEffect('dual-rumble', { duration: ms, strongMagnitude: intensity, weakMagnitude: intensity });
     } catch { /* haptics optional */ }
   }
 }
@@ -131,8 +143,8 @@ export class VRRig {
         fist.prev.copy(fist.position);
       }
       fist.speed = fist.velocity.length();
-      fist.history.push({ t: now, speed: fist.speed });
-      while (fist.history.length && now - fist.history[0].t > 0.2) fist.history.shift();
+      fist.history.push({ t: now, speed: fist.speed, p: fist.position.clone() });
+      while (fist.history.length && now - fist.history[0].t > 0.7) fist.history.shift();
 
       fist.mesh.position.copy(fist.position);
       fist.halo.material.opacity = 0.35 + Math.min(0.6, fist.speed / 6);

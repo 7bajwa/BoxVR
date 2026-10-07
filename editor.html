@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BOXFLOW Level Creator</title>
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/editor.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
+  </script>
+</head>
+<body>
+  <header>
+    <h1>BOXFLOW <span>Level Creator</span></h1>
+    <div class="actions">
+      <select id="openSel" title="Open a level"></select>
+      <button id="newBtn">New</button>
+      <label class="btn">Import JSON<input id="importFile" type="file" accept=".json,application/json" hidden></label>
+      <button id="exportBtn">Export JSON</button>
+      <button id="testBtn" class="primary">Save &amp; Test in game ▶</button>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <section>
+        <h2>Level</h2>
+        <label>Name <input id="name" value="My Level"></label>
+        <label>Scene <select id="scene"></select></label>
+        <label>Target <select id="target"></select></label>
+        <label>Effect <select id="effect"></select></label>
+      </section>
+
+      <section>
+        <h2>Music</h2>
+        <label>Song <select id="song"></select></label>
+        <label class="btn wide">Load audio file (CC0 mp3/ogg/wav)…<input id="audioFile" type="file" accept="audio/*" hidden></label>
+        <p id="audioInfo" class="hint"></p>
+        <div class="row">
+          <label>BPM <input id="bpm" type="number" min="40" max="240" step="0.01" value="120"></label>
+          <button id="tapBtn" title="Tap along to the beat">Tap</button>
+        </div>
+        <div class="row">
+          <label>Offset (s) <input id="offset" type="number" step="0.005" value="0"></label>
+          <button id="nudgeL" title="-10 ms">−</button><button id="nudgeR" title="+10 ms">+</button>
+        </div>
+        <p class="hint">Offset = time of beat 1 in the audio file. Use the metronome to line it up.</p>
+      </section>
+
+      <section>
+        <h2>Chart</h2>
+        <div id="diffTabs" class="tabs"></div>
+        <div class="row">
+          <label>Grid <select id="grid"><option value="1">1 beat</option><option value="0.5" selected>1/2 beat</option><option value="0.25">1/4 beat</option></select></label>
+          <label>Zoom <input id="zoom" type="range" min="20" max="200" value="70"></label>
+        </div>
+        <label class="check"><input id="seqOrder" type="checkbox" checked> Follow the BOXFLOW combo order</label>
+        <div class="row">
+          <select id="autoMode">
+            <option value="dynamic">Auto: follow song energy</option>
+            <option value="4">Auto: every 4 beats</option>
+            <option value="2">Auto: every 2 beats</option>
+            <option value="1">Auto: every beat</option>
+          </select>
+          <button id="autoBtn">Auto-fill</button>
+        </div>
+        <button id="clearBtn" class="danger wide">Clear this difficulty</button>
+        <p id="stats" class="hint"></p>
+      </section>
+    </aside>
+
+    <div class="stage">
+      <div class="transport">
+        <button id="playBtn" class="primary">▶ Play</button>
+        <button id="stopBtn">■ Stop</button>
+        <button id="recBtn">● Record</button>
+        <label class="check"><input id="metro" type="checkbox"> Metronome</label>
+        <span id="time">0:00.0 · beat 0</span>
+        <span class="keys">Record keys: <kbd>S</kbd> L-Upper <kbd>D</kbd> L-Hook <kbd>F</kbd> Jab <kbd>J</kbd> Cross <kbd>K</kbd> R-Hook <kbd>L</kbd> R-Upper · <kbd>Enter</kbd> next combo move</span>
+      </div>
+      <canvas id="timeline"></canvas>
+      <p class="hint pad">Click a cell to add a target, click a target to remove it. Drag or scroll to move, Ctrl+scroll to zoom, click the ruler to seek. Space = play/pause.</p>
+    </div>
+  </main>
+
+  <script type="module" src="js/editor.js"></script>
+</body>
+</html>

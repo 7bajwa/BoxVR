@@ -1,0 +1,21 @@
+{
+  "name": "Tidal Light",
+  "song": "tidal-light",
+  "scene": "lighthouse",
+  "target": "orb",
+  "effect": "mist",
+  "charts": {
+    "easy": {
+      "auto": "dynamic"
+    },
+    "normal": {
+      "auto": "dynamic"
+    },
+    "hard": {
+      "auto": "dynamic"
+    },
+    "expert": {
+      "auto": "dynamic"
+    }
+  }
+}

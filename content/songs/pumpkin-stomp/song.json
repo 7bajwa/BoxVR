@@ -1,0 +1,198 @@
+{
+  "name": "Pumpkin Stomp",
+  "artist": "BOXFLOW Synth",
+  "license": "CC0 (procedural)",
+  "type": "synth",
+  "bpm": 128,
+  "progression": [
+    [
+      50,
+      53,
+      57
+    ],
+    [
+      46,
+      50,
+      53
+    ],
+    [
+      43,
+      46,
+      50
+    ],
+    [
+      45,
+      49,
+      52
+    ]
+  ],
+  "tracks": {
+    "kick": {
+      "inst": "kick",
+      "pattern": "X...x...X...x..."
+    },
+    "clap": {
+      "inst": "clap",
+      "pattern": "....x.......x..."
+    },
+    "hat": {
+      "inst": "hat",
+      "pattern": ".xx..xx..xx..xx."
+    },
+    "shaker": {
+      "inst": "shaker",
+      "pattern": "x.x.x.x.x.x.x.x.",
+      "vol": 0.6
+    },
+    "bass": {
+      "inst": "bass",
+      "pattern": "x..x..x.x..x..x.",
+      "notes": "seq",
+      "seq": [
+        0,
+        7,
+        12,
+        7
+      ],
+      "octave": -1,
+      "cutoff": 700
+    },
+    "organ": {
+      "inst": "organ",
+      "pattern": "x.......x.......",
+      "notes": "chord",
+      "len": 6
+    },
+    "bell": {
+      "inst": "bell",
+      "pattern": "x.x.x...x.x.x...",
+      "notes": "seq",
+      "seq": [
+        12,
+        15,
+        17,
+        15,
+        12,
+        10,
+        12,
+        7
+      ]
+    },
+    "creep": {
+      "inst": "pluck",
+      "pattern": "x..x..x..x..x.x.",
+      "notes": "seq",
+      "seq": [
+        0,
+        1,
+        0,
+        1,
+        3,
+        1
+      ],
+      "octave": 1,
+      "wave": "square",
+      "cutoff": 1500,
+      "vol": 0.7
+    },
+    "tom": {
+      "inst": "tom",
+      "pattern": "....................................................x.x.x.x.xxxx",
+      "notes": "fixed",
+      "note": 41
+    },
+    "riser": {
+      "inst": "riser",
+      "pattern": "x...............................................................",
+      "len": 64
+    }
+  },
+  "sections": [
+    {
+      "name": "intro",
+      "bars": 4,
+      "intensity": 0,
+      "tracks": [
+        "organ",
+        "bell"
+      ]
+    },
+    {
+      "name": "verse",
+      "bars": 8,
+      "intensity": 1,
+      "tracks": [
+        "kick",
+        "bass",
+        "organ",
+        "hat",
+        "creep"
+      ]
+    },
+    {
+      "name": "drop",
+      "bars": 16,
+      "intensity": 2,
+      "tracks": [
+        "kick",
+        "clap",
+        "hat",
+        "shaker",
+        "bass",
+        "organ",
+        "bell",
+        "tom"
+      ]
+    },
+    {
+      "name": "creep",
+      "bars": 8,
+      "intensity": 1,
+      "tracks": [
+        "organ",
+        "creep",
+        "clap",
+        "shaker"
+      ]
+    },
+    {
+      "name": "lift",
+      "bars": 4,
+      "intensity": 1,
+      "tracks": [
+        "kick",
+        "bass",
+        "creep",
+        "riser",
+        "hat"
+      ]
+    },
+    {
+      "name": "drop2",
+      "bars": 16,
+      "intensity": 2,
+      "tracks": [
+        "kick",
+        "clap",
+        "hat",
+        "shaker",
+        "bass",
+        "organ",
+        "bell",
+        "creep",
+        "tom"
+      ]
+    },
+    {
+      "name": "outro",
+      "bars": 4,
+      "intensity": 0,
+      "tracks": [
+        "organ",
+        "bell",
+        "kick"
+      ]
+    }
+  ],
+  "loopSection": "drop"
+}

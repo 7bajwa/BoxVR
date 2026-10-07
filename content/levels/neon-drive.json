@@ -1,0 +1,21 @@
+{
+  "name": "Neon Drive",
+  "song": "neon-drive",
+  "scene": "neon-city",
+  "target": "holo",
+  "effect": "neon-burst",
+  "charts": {
+    "easy": {
+      "auto": "dynamic"
+    },
+    "normal": {
+      "auto": "dynamic"
+    },
+    "hard": {
+      "auto": "dynamic"
+    },
+    "expert": {
+      "auto": "dynamic"
+    }
+  }
+}

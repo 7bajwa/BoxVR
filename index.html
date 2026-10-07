@@ -4,82 +4,41 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>BOXFLOW</title>
-  <meta name="description" content="BOXFLOW — an infinite boxing-sequence rhythm trainer for Meta Quest 3 (WebXR) and the browser.">
-  <meta name="theme-color" content="#0e2a4a">
+  <meta name="description" content="BOXFLOW — VR boxing rhythm trainer for Meta Quest 3 (WebXR) and the browser.">
+  <meta name="theme-color" content="#05070d">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script type="importmap">
-    { "imports": { "three": "./vendor/three.module.js" } }
+    { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
   </script>
 </head>
 <body data-state="menu">
   <div id="stage"></div>
   <div id="flash"></div>
+  <div id="pts"></div>
 
-  <!-- Playing: pause button + bottom HUD strip -->
+  <div id="splash"><h1>BOXFLOW</h1><p>Loading…</p></div>
+
+  <button id="enterVR" class="vr-pill" hidden>🥽 ENTER VR</button>
   <button id="pauseBtn" class="round" aria-label="Pause">❚❚</button>
+  <p id="note"></p>
 
   <footer id="hud">
+    <div id="hProgressWrap"><div id="hProgress"></div></div>
     <div class="cell big"><small>SCORE</small><span id="hScore">0</span></div>
-    <div class="cell"><small>STREAK</small><span id="hStreak" class="g">0</span><em id="hMult">×1</em></div>
+    <div class="cell"><small>STREAK</small><span id="hStreak" class="g">0</span><em id="hMult">×1</em>
+      <i id="hPips"><b></b><b></b><b></b></i></div>
     <div class="cell"><small>NEXT</small><span id="hNext">R UPPER</span></div>
     <div class="cell"><small>LONGEST CHAIN</small><span id="hLongest" class="y">0</span></div>
-    <div class="cell"><small>TIME</small><span id="hTime" class="c">00:00</span></div>
+    <div class="cell"><small id="hTimeLabel">TIME</small><span id="hTime" class="c">00:00</span></div>
+    <div class="cell" id="hSpeedCell"><small>SPEED</small><span id="hSpeed" class="o">1.0×</span></div>
   </footer>
   <nav id="pads"></nav>
-
-  <!-- Menus -->
-  <div id="overlay" data-page="main">
-
-    <section class="card" id="mainCard">
-      <h1>BOXFLOW</h1>
-      <p class="tag">Infinite boxing-sequence rhythm trainer</p>
-      <button id="enterVR" class="btn primary vr" hidden>ENTER VR</button>
-      <button id="playBtn" class="btn primary">PLAY</button>
-      <button id="mainSettings" class="btn">SETTINGS</button>
-      <p id="vrNote" class="note"></p>
-      <div class="seqchips" id="startSeq"></div>
-      <p id="summary" class="note"></p>
-      <p id="best" class="note dim"></p>
-      <p class="keys dim">Keys: <kbd>S</kbd><kbd>D</kbd><kbd>F</kbd> left upper · hook · jab — <kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> right cross · hook · upper — <kbd>Esc</kbd> pause</p>
-    </section>
-
-    <section class="card" id="pauseCard">
-      <h1 class="small">PAUSED</h1>
-      <p id="pauseStats" class="tag"></p>
-      <button id="continueBtn" class="btn primary">CONTINUE</button>
-      <button id="pauseSettings" class="btn">SETTINGS</button>
-      <button id="menuBtn" class="btn danger">MAIN MENU</button>
-    </section>
-
-    <section class="card" id="settingsCard">
-      <h2>Settings</h2>
-      <div class="group">
-        <div class="row"><label for="speed">Speed</label><strong id="speedVal">1.0×</strong></div>
-        <div class="slider">
-          <button id="speedMinus" aria-label="Slower">−</button>
-          <input id="speed" type="range" min="0" max="1000" step="1" aria-label="Speed (0.1× to 10×)">
-          <button id="speedPlus" aria-label="Faster">+</button>
-        </div>
-        <div class="row sub"><span>0.1×</span><span id="speedSub">3.00 s per target</span><button id="speedReset">1×</button><span>10×</span></div>
-      </div>
-      <div class="group two">
-        <button id="music" class="seg">♪ Music ON</button>
-        <button id="refl" class="seg">Reflections ON</button>
-      </div>
-      <div class="group">
-        <label>Scene</label>
-        <div class="segs"><button class="seg" data-theme="city">Neon City</button><button class="seg" data-theme="minimal">Minimal</button></div>
-      </div>
-      <div class="group">
-        <label>Haze</label>
-        <div class="segs"><button class="seg" data-haze="0">Low</button><button class="seg" data-haze="1">Medium</button><button class="seg" data-haze="2">High</button></div>
-      </div>
-      <button id="settingsDone" class="btn primary">DONE</button>
-    </section>
-  </div>
 
   <script type="module" src="js/main.js"></script>
 </body>

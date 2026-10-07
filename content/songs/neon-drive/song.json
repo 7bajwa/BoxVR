@@ -1,0 +1,199 @@
+{
+  "name": "Neon Drive",
+  "artist": "BOXFLOW Synth",
+  "license": "CC0 (procedural)",
+  "type": "synth",
+  "bpm": 124,
+  "progression": [
+    [
+      57,
+      60,
+      64
+    ],
+    [
+      53,
+      57,
+      60
+    ],
+    [
+      48,
+      52,
+      55
+    ],
+    [
+      55,
+      59,
+      62
+    ]
+  ],
+  "tracks": {
+    "kick": {
+      "inst": "kick",
+      "pattern": "X...x...X...x..."
+    },
+    "clap": {
+      "inst": "clap",
+      "pattern": "....x.......x..."
+    },
+    "hat": {
+      "inst": "hat",
+      "pattern": "o.x.o.x.o.x.o.xx"
+    },
+    "openhat": {
+      "inst": "openhat",
+      "pattern": "..x...x...x...x."
+    },
+    "shaker": {
+      "inst": "shaker",
+      "pattern": "xoxoxoxoxoxoxoxo",
+      "vol": 0.6
+    },
+    "bass": {
+      "inst": "bass",
+      "pattern": "x.xxx.xxx.xxx.xx",
+      "notes": "seq",
+      "seq": [
+        0,
+        0,
+        12,
+        0,
+        0,
+        12,
+        0,
+        12
+      ],
+      "octave": -1
+    },
+    "arp": {
+      "inst": "pluck",
+      "pattern": "xxxxxxxxxxxxxxxx",
+      "notes": "arpud",
+      "octave": 1,
+      "vol": 0.7,
+      "wave": "square",
+      "cutoff": 2400
+    },
+    "pad": {
+      "inst": "pad",
+      "pattern": "x...............",
+      "notes": "chord",
+      "len": 16
+    },
+    "lead": {
+      "inst": "lead",
+      "pattern": "x..x..x.x.x.x...",
+      "notes": "seq",
+      "seq": [
+        12,
+        10,
+        7,
+        12,
+        15,
+        14,
+        12,
+        7,
+        10,
+        12,
+        7,
+        5
+      ],
+      "len": 2
+    },
+    "riser": {
+      "inst": "riser",
+      "pattern": "x...............................................................",
+      "len": 64
+    }
+  },
+  "sections": [
+    {
+      "name": "intro",
+      "bars": 4,
+      "intensity": 0,
+      "tracks": [
+        "pad",
+        "shaker",
+        "hat"
+      ]
+    },
+    {
+      "name": "build",
+      "bars": 8,
+      "intensity": 1,
+      "tracks": [
+        "kick",
+        "hat",
+        "shaker",
+        "bass",
+        "pad",
+        "arp"
+      ]
+    },
+    {
+      "name": "drop",
+      "bars": 16,
+      "intensity": 2,
+      "tracks": [
+        "kick",
+        "clap",
+        "hat",
+        "openhat",
+        "shaker",
+        "bass",
+        "arp",
+        "pad",
+        "lead"
+      ]
+    },
+    {
+      "name": "break",
+      "bars": 8,
+      "intensity": 1,
+      "tracks": [
+        "pad",
+        "arp",
+        "shaker",
+        "clap"
+      ]
+    },
+    {
+      "name": "lift",
+      "bars": 4,
+      "intensity": 1,
+      "tracks": [
+        "kick",
+        "bass",
+        "pad",
+        "hat",
+        "riser"
+      ]
+    },
+    {
+      "name": "drop2",
+      "bars": 16,
+      "intensity": 2,
+      "tracks": [
+        "kick",
+        "clap",
+        "hat",
+        "openhat",
+        "shaker",
+        "bass",
+        "arp",
+        "pad",
+        "lead"
+      ]
+    },
+    {
+      "name": "outro",
+      "bars": 4,
+      "intensity": 0,
+      "tracks": [
+        "pad",
+        "kick",
+        "shaker"
+      ]
+    }
+  ],
+  "loopSection": "drop"
+}

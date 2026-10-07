@@ -1,0 +1,204 @@
+{
+  "name": "Hyper Jab",
+  "artist": "BOXFLOW Synth",
+  "license": "CC0 (procedural)",
+  "type": "synth",
+  "bpm": 140,
+  "progression": [
+    [
+      52,
+      55,
+      59
+    ],
+    [
+      48,
+      52,
+      55
+    ],
+    [
+      55,
+      59,
+      62
+    ],
+    [
+      50,
+      54,
+      57
+    ]
+  ],
+  "tracks": {
+    "kick": {
+      "inst": "kick",
+      "pattern": "X...x...X...x..."
+    },
+    "snare": {
+      "inst": "snare",
+      "pattern": "....x.......x..x"
+    },
+    "clap": {
+      "inst": "clap",
+      "pattern": "....x.......x..."
+    },
+    "hat": {
+      "inst": "hat",
+      "pattern": "xxxxxxxxxxxxxxxx",
+      "vol": 0.8
+    },
+    "openhat": {
+      "inst": "openhat",
+      "pattern": "..x...x...x...x."
+    },
+    "sub": {
+      "inst": "sub",
+      "pattern": "x...x...x...x...",
+      "notes": "root",
+      "octave": -2,
+      "len": 3
+    },
+    "bass": {
+      "inst": "bass",
+      "pattern": "..x...x...x.x.x.",
+      "notes": "root",
+      "octave": -1,
+      "cutoff": 900
+    },
+    "arp": {
+      "inst": "pluck",
+      "pattern": "xxxxxxxxxxxxxxxx",
+      "notes": "arp",
+      "octave": 1,
+      "wave": "sawtooth",
+      "cutoff": 3200,
+      "vol": 0.6
+    },
+    "stab": {
+      "inst": "pluck",
+      "pattern": "x..x..x...x..x..",
+      "notes": "chord",
+      "wave": "sawtooth",
+      "cutoff": 2200,
+      "vol": 0.8,
+      "len": 2
+    },
+    "lead": {
+      "inst": "lead",
+      "pattern": "x.x.x..xx.x.x...",
+      "notes": "seq",
+      "seq": [
+        12,
+        14,
+        15,
+        19,
+        17,
+        15,
+        14,
+        12
+      ],
+      "wave": "square",
+      "len": 2
+    },
+    "tom": {
+      "inst": "tom",
+      "pattern": "........................................................x.x.xxxx",
+      "notes": "fixed",
+      "note": 45
+    },
+    "riser": {
+      "inst": "riser",
+      "pattern": "x...............................................................",
+      "len": 64
+    }
+  },
+  "sections": [
+    {
+      "name": "intro",
+      "bars": 4,
+      "intensity": 0,
+      "tracks": [
+        "hat",
+        "arp"
+      ]
+    },
+    {
+      "name": "build",
+      "bars": 8,
+      "intensity": 1,
+      "tracks": [
+        "kick",
+        "hat",
+        "bass",
+        "arp",
+        "tom"
+      ]
+    },
+    {
+      "name": "drop",
+      "bars": 16,
+      "intensity": 2,
+      "tracks": [
+        "kick",
+        "snare",
+        "clap",
+        "hat",
+        "openhat",
+        "sub",
+        "bass",
+        "arp",
+        "stab",
+        "lead",
+        "tom"
+      ]
+    },
+    {
+      "name": "break",
+      "bars": 4,
+      "intensity": 1,
+      "tracks": [
+        "stab",
+        "arp",
+        "clap"
+      ]
+    },
+    {
+      "name": "lift",
+      "bars": 4,
+      "intensity": 1,
+      "tracks": [
+        "kick",
+        "hat",
+        "bass",
+        "riser",
+        "arp"
+      ]
+    },
+    {
+      "name": "drop2",
+      "bars": 16,
+      "intensity": 2,
+      "tracks": [
+        "kick",
+        "snare",
+        "clap",
+        "hat",
+        "openhat",
+        "sub",
+        "bass",
+        "arp",
+        "stab",
+        "lead",
+        "tom"
+      ]
+    },
+    {
+      "name": "outro",
+      "bars": 4,
+      "intensity": 0,
+      "tracks": [
+        "kick",
+        "hat",
+        "stab"
+      ]
+    }
+  ],
+  "loopSection": "drop"
+}

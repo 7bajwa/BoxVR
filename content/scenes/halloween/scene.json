@@ -1,0 +1,11 @@
+{
+  "name": "Haunted Hollow",
+  "description": "Full moon, bats and jack-o'-lanterns along a crooked path",
+  "module": "scene.js",
+  "target": "pumpkin",
+  "effect": "embers",
+  "music": "pumpkin-stomp",
+  "ambient": "wind",
+  "gateColor": "#ffb35f",
+  "colors": ["#5a3008", "#16302e"]
+}
