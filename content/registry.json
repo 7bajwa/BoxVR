@@ -1,7 +1,43 @@
 {
-  "scenes": ["neon-city", "halloween", "lighthouse", "deep-space"],
-  "targets": ["holo", "pumpkin", "orb", "crystal"],
-  "effects": ["neon-burst", "embers", "mist"],
-  "songs": ["neon-drive", "hyper-jab", "pumpkin-stomp", "tidal-light"],
-  "levels": ["neon-drive", "hyper-jab", "pumpkin-stomp", "tidal-light"]
+  "scenes": [
+    "neon-city",
+    "halloween",
+    "lighthouse",
+    "deep-space",
+    "christmas",
+    "snow-day"
+  ],
+  "targets": [
+    "holo",
+    "pumpkin",
+    "orb",
+    "crystal",
+    "asteroid",
+    "ornament",
+    "snowball"
+  ],
+  "effects": [
+    "neon-burst",
+    "embers",
+    "mist",
+    "rubble",
+    "glass",
+    "snow-puff"
+  ],
+  "songs": [
+    "neon-drive",
+    "hyper-jab",
+    "pumpkin-stomp",
+    "tidal-light",
+    "jingle-rush",
+    "snow-day"
+  ],
+  "levels": [
+    "neon-drive",
+    "hyper-jab",
+    "pumpkin-stomp",
+    "tidal-light",
+    "jingle-rush",
+    "snow-day"
+  ]
 }

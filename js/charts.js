@@ -54,3 +54,38 @@ export function buildChart(level, song, difficulty) {
   notes.sort((a, b) => a.beat - b.beat);
   return notes;
 }
+
+// Hurdles for a song level: explicit `level.hurdles[difficulty]` / `level.charts[d].hurdles`
+// ([[beat, "duck"|"left"|"right"], ...]) or auto — dropped into gaps between targets.
+// NOTE: auto mode may remove a target or two next to a hurdle (mutates `notes`) to leave room to dodge.
+const HURDLE_EVERY_BARS = { easy: 0, normal: 8, hard: 6, expert: 4 };
+const CYCLE = ['duck', 'left', 'duck', 'right'];
+export function buildHurdles(level, song, difficulty, notes) {
+  const spec = level.charts && level.charts[difficulty];
+  if (spec && spec.hurdles) return spec.hurdles.map(([beat, type]) => ({ beat, type }));
+  if (spec && spec.notes) return [];   // hand-made chart: only the hurdles its author placed
+  const every = HURDLE_EVERY_BARS[difficulty] || 0;
+  if (!every || !notes.length) return [];
+  const bars = barsFor(song);
+  const out = [];
+  let k = 0, carved = false;
+  for (let bar = every; bar < bars.length - 2; bar += every) {
+    if ((bars[bar] || {}).intensity < 1) continue;
+    // find the widest gap between notes inside this bar's neighbourhood
+    const from = bar * 4, to = from + 8;
+    let best = null;
+    for (let i = 0; i < notes.length - 1; i++) {
+      const a = notes[i].beat, b = notes[i + 1].beat;
+      if (b < from || a > to) continue;
+      if (b - a >= 2 && (!best || b - a > best.gap)) best = { beat: (a + b) / 2, gap: b - a };
+    }
+    if (!best) { // dense section: carve a gap (drop targets within 1 beat of the hurdle)
+      const h = from + 2;
+      for (let i = notes.length - 1; i >= 0; i--) if (Math.abs(notes[i].beat - h) < 1) notes.splice(i, 1);
+      best = { beat: h }; carved = true;
+    }
+    out.push({ beat: best.beat, type: CYCLE[k++ % CYCLE.length] });
+  }
+  if (carved && !(spec && spec.notes)) notes.forEach((n, i) => { n.action = SEQUENCE[i % SEQUENCE.length]; }); // keep the combo order
+  return out;
+}

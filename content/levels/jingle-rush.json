@@ -1,9 +1,9 @@
 {
-  "name": "Hyper Jab",
-  "song": "hyper-jab",
-  "scene": "deep-space",
-  "target": "asteroid",
-  "effect": "rubble",
+  "name": "Jingle Rush",
+  "song": "jingle-rush",
+  "scene": "christmas",
+  "target": "ornament",
+  "effect": "glass",
   "charts": {
     "easy": {
       "auto": "dynamic"

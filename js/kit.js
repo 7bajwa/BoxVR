@@ -207,7 +207,7 @@ export function ringPool(scene, n = 8, { inner = 0.9 } = {}) {
     m.visible = false; m.renderOrder = 8; m.userData.life = 0; scene.add(m); rings.push(m);
   }
   return {
-    fire(p, color, { life = 0.35, from = 0.08, to = 0.55 } = {}) {
+    fire(p, color, { life = 0.3, from = 0.06, to = 0.32 } = {}) {
       const r = rings.find((x) => x.userData.life <= 0) || rings[0];
       r.position.copy(p); r.material.color.set(color); Object.assign(r.userData, { life, max: life, from, to }); r.visible = true;
     },

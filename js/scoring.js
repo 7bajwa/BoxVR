@@ -39,6 +39,9 @@ export class Scoring {
     return pts;
   }
 
+  // A clean hurdle dodge: small bonus, keeps the streak alive (does not add to it).
+  dodge() { this.dodges = (this.dodges || 0) + 1; this.missRun = 0; const pts = Math.round(25 * this.multiplier); this.score += pts; return pts; }
+
   miss() { this.misses++; this.streak = 0; this.missRun++; }
   mistake() { this.mistakes++; this.streak = 0; this.missRun++; }
 

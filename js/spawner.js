@@ -1,13 +1,19 @@
-// BOXFLOW — target spawner + hit judging.
+// BOXFLOW — target spawner, hit judging and hurdles.
 // Two schedules: ENDLESS (one target per interval, the fixed sequence forever, speed can ramp)
 // and CHART (absolute note times from a song level). Targets fly straight down the lane and
-// reach their hit zone exactly on the beat.
+// reach their hit point exactly on the beat. Hurdles fly the same lane and must be dodged.
+//
+// HIT TEST — forgiving on purpose:
+//  • each action has an ellipsoid hit volume (ACTIONS[].zone): straights are deep, uppercuts tall;
+//  • the fist is tested along its path since the last sample (fast punches / tracking dropouts);
+//  • direction = the fist's velocity at its fastest moment in the last ~120 ms.
 import * as THREE from 'three';
 import { ACTIONS, SEQUENCE, TUNING, intervalFor, travelFor, windowFor } from './config.js';
 import { Target } from './target.js';
+import { Hurdle } from './hurdles.js';
 
-const _v = new THREE.Vector3();
-const _d = new THREE.Vector3();
+const _v = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3();
+const HURDLE_CYCLE = ['duck', 'left', 'duck', 'right'];
 
 export class Spawner {
   constructor(scene) {
@@ -15,8 +21,12 @@ export class Spawner {
     this.style = null;
     this.pool = {};
     this.active = [];
-    this.anchor = new THREE.Vector3(0, 1.6, 0); // player position (x, z used)
-    this.targetHeight = 1.6;                     // meters — straight punches hit here
+    this.hurdleStyle = 'laser';
+    this.hurdlePool = [];
+    this.hurdles = [];        // active hurdles
+    this.hurdlesOn = true;
+    this.anchor = new THREE.Vector3(0, 1.6, 0); // player position (x, z) + standing head height (y)
+    this.targetHeight = 1.6;
     this.strictDir = true;
     this.running = false;
     this.mode = 'endless';
@@ -24,7 +34,7 @@ export class Spawner {
     this.nextHit = 0;
     this.speed = 1;
     this.travel = travelFor(1);
-    this.onHit = null; this.onMiss = null; this.onWrong = null;
+    this.onHit = null; this.onMiss = null; this.onWrong = null; this.onDodge = null; this.onBump = null;
   }
 
   setStyle(style) {
@@ -34,15 +44,24 @@ export class Spawner {
     this.style = style;
   }
 
+  setHurdleStyle(style) {
+    if (style === this.hurdleStyle) return;
+    for (const h of this.hurdlePool) this.scene.remove(h.group);
+    this.hurdlePool = []; this.hurdles = [];
+    this.hurdleStyle = style;
+  }
+
   acquire(actionId) {
     const list = (this.pool[actionId] ||= []);
     let t = list.find((x) => !x.active);
-    if (!t) {
-      t = new Target(actionId, this.style);
-      this.scene.add(t.group, t.ghost);
-      list.push(t);
-    }
+    if (!t) { t = new Target(actionId, this.style); this.scene.add(t.group); list.push(t); }
     return t;
+  }
+
+  acquireHurdle(type) {
+    let h = this.hurdlePool.find((x) => !x.active && x.type === type);
+    if (!h) { h = new Hurdle(type, this.hurdleStyle); this.scene.add(h.group); this.hurdlePool.push(h); }
+    return h;
   }
 
   zoneFor(action, out = new THREE.Vector3()) {
@@ -67,7 +86,8 @@ export class Spawner {
     this.clear();
     this.mode = 'endless';
     this.running = true;
-    this.seqIndex = 0;
+    this.seqIndex = 0; this.spawnCount = 0; this.hurdleIdx = 0;
+    this.pendingHurdles = [];
     this.setSpeed(speed, now);
     this.nextHit = now + Math.max(TUNING.leadIn, this.travel);
     this.prevInterval = this.interval;
@@ -75,8 +95,8 @@ export class Spawner {
   }
 
   // ---------------------------------------------------------------- chart
-  // notes: [{ time, action }] absolute (clock) seconds, sorted.
-  startChart(notes, travel) {
+  // notes: [{ time, action }], hurdles: [{ time, type }] — absolute clock seconds, sorted.
+  startChart(notes, travel, hurdles = []) {
     this.clear();
     this.mode = 'chart';
     this.running = true;
@@ -88,9 +108,13 @@ export class Spawner {
     });
     this.noteIdx = 0;
     this.seqIndex = 0;
+    this.pendingHurdles = this.hurdlesOn ? hurdles.map((h) => ({ ...h })) : [];
   }
 
-  get done() { return this.mode === 'chart' && this.noteIdx >= this.notes.length && this.active.length === 0; }
+  get done() {
+    return this.mode === 'chart' && this.noteIdx >= this.notes.length && this.active.length === 0
+      && this.hurdles.length === 0 && this.pendingHurdles.length === 0;
+  }
 
   // ---------------------------------------------------------------- common
   stop() { this.running = false; this.clear(); }
@@ -98,18 +122,25 @@ export class Spawner {
   clear() {
     for (const t of this.active) t.reset();
     this.active.length = 0;
+    for (const h of this.hurdles) { h.active = false; h.group.visible = false; }
+    this.hurdles = [];
+    this.pendingHurdles = [];
   }
 
-  // Pause support: push every pending beat later by `d` seconds.
   shift(d) {
     this.nextHit += d;
     if (this.notes) for (let i = this.noteIdx; i < this.notes.length; i++) this.notes[i].time += d;
     for (const t of this.active) { t.hitTime += d; t.deadTime += d; }
+    for (const h of this.hurdles) h.time += d;
+    for (const h of this.pendingHurdles || []) h.time += d;
   }
 
-  setVisible(v) { for (const t of this.active) { t.group.visible = v; if (!v) t.ghost.visible = false; } }
+  setVisible(v) {
+    for (const t of this.active) t.group.visible = v;
+    for (const h of this.hurdles) h.group.visible = v;
+  }
 
-  spawn(actionId, hitTime, window, now) {
+  spawn(actionId, hitTime, window) {
     const t = this.acquire(actionId);
     t.active = true;
     t.state = 'flying';
@@ -127,23 +158,37 @@ export class Spawner {
   spawnDue(now) {
     if (!this.running) return;
     if (this.mode === 'endless') {
-      // After a stall (tab hidden, headset off) skip beats that can no longer be shown.
-      while (this.nextHit < now + this.travel * 0.5) {
+      while (this.nextHit < now + this.travel * 0.5) {        // skip beats lost to a stall
         this.nextHit += this.interval;
         this.seqIndex = (this.seqIndex + 1) % SEQUENCE.length;
       }
       while (this.nextHit - this.travel <= now) {
-        const t = this.spawn(SEQUENCE[this.seqIndex], this.nextHit, this.window, now);
+        const t = this.spawn(SEQUENCE[this.seqIndex], this.nextHit, this.window);
         t.seqIndex = this.seqIndex;
         this.seqIndex = (this.seqIndex + 1) % SEQUENCE.length;
+        this.spawnCount++;
+        // a hurdle between two targets every few targets (only when there's room to dodge)
+        if (this.hurdlesOn && this.interval >= 0.9 && this.spawnCount % TUNING.hurdleEveryTargets === 0) {
+          this.pendingHurdles.push({ time: this.nextHit + this.interval * 0.5, type: HURDLE_CYCLE[this.hurdleIdx++ % HURDLE_CYCLE.length] });
+        }
         this.nextHit += this.interval;
       }
     } else {
       while (this.noteIdx < this.notes.length && this.notes[this.noteIdx].time - this.travel <= now) {
         const n = this.notes[this.noteIdx++];
-        if (n.time < now - n.window) { this.onMiss && this.onMiss(null); if (!this.running) return; continue; } // stalled past it
-        this.spawn(n.action, n.time, n.window, now);
+        if (n.time < now - n.window) { this.onMiss && this.onMiss(null); if (!this.running) return; continue; }
+        this.spawn(n.action, n.time, n.window);
       }
+    }
+    // hurdles
+    const ph = this.pendingHurdles;
+    while (ph.length && ph[0].time - this.travel <= now) {
+      const p = ph.shift();
+      if (p.time < now) continue;
+      const h = this.acquireHurdle(p.type);
+      h.active = true; h.time = p.time; h.velocity = TUNING.spawnDistance / this.travel; h.resolved = false;
+      h.group.visible = true;
+      this.hurdles.push(h);
     }
   }
 
@@ -152,7 +197,6 @@ export class Spawner {
     return null;
   }
 
-  // Next action the player has to throw (HUD).
   nextAction() {
     let best = null;
     for (const t of this.active) if (t.state === 'flying' && (!best || t.hitTime < best.hitTime)) best = t;
@@ -161,34 +205,29 @@ export class Spawner {
     return SEQUENCE[this.seqIndex];
   }
 
-  update(now, dt, fists, camera) {
+  // head = world position of the player's head (VR camera, or the desktop virtual head)
+  update(now, dt, fists, camera, head) {
     this.spawnDue(now);
     if (!this.running) return;
     const cur = this.current(now);
     if (cur && fists) this.checkFists(cur, now, fists);
 
     for (let i = this.active.length - 1; i >= 0; i--) {
-      if (!this.running) return;          // a callback (e.g. game over) ended the run
+      if (!this.running) return;
       const t = this.active[i];
       if (!t) continue;
       const tt = t.hitTime - now;
       t.update(now, dt);
 
       if (t.state === 'flying') {
-        t.group.position.set(t.zone.x, t.zone.y, t.zone.z - tt * t.velocity);
+        let y = t.zone.y;
+        const arc = this.style.meta.arc || 0;           // e.g. thrown snowballs
+        if (arc && tt > 0) { const u = 1 - tt / t.travel; y += arc * 4 * u * (1 - u); }
+        t.group.position.set(t.zone.x, y, t.zone.z - tt * t.velocity);
         t.setOpacity(Math.max(0, Math.min(1, (t.travel - tt) / 0.4)));
         t.group.lookAt(camera.position.x, t.group.position.y, camera.position.z);
-        const g = t.ghost;
-        if (tt < t.travel * 0.6 && tt > -t.window) {
-          const k = Math.max(0, tt) / (t.travel * 0.6);
-          g.visible = true;
-          g.position.copy(t.zone);
-          g.scale.setScalar(1 + k * 1.3);
-          g.material.opacity = 0.3 + (1 - k) * 0.6;
-          g.lookAt(camera.position);
-        } else g.visible = false;
         if (now - t.hitTime > t.window) {
-          t.state = 'missed'; t.deadTime = now; t.setTint(true); g.visible = false;
+          t.state = 'missed'; t.deadTime = now; t.setTint(true);
           this.onMiss && this.onMiss(t);
         }
       } else if (t.state === 'missed') {
@@ -205,6 +244,40 @@ export class Spawner {
         if (age > 0.22) { t.reset(); this.active.splice(i, 1); }
       }
     }
+
+    // hurdles: fly to the player's plane, judge the head when they pass it
+    for (let i = this.hurdles.length - 1; i >= 0; i--) {
+      if (!this.running) return;
+      const h = this.hurdles[i];
+      const tt = h.time - now;
+      const z = this.anchor.z - tt * h.velocity;
+      const a = this.anchor;
+      if (h.type === 'duck') h.group.position.set(a.x, a.y - 0.08, z);
+      else h.group.position.set(a.x + (h.type === 'left' ? -0.02 : 0.02), 0, z);
+      if (!h.resolved && tt <= 0) {
+        h.resolved = true;
+        let bumped = false;
+        if (head) {
+          if (h.type === 'duck') bumped = head.y > a.y - TUNING.duckDepth;
+          else if (h.type === 'left') bumped = head.x < a.x + TUNING.sideClear;
+          else bumped = head.x > a.x - TUNING.sideClear;
+        }
+        if (bumped) this.onBump && this.onBump(h); else this.onDodge && this.onDodge(h);
+        if (!this.running) return;
+      }
+      if (tt < -0.6) { h.active = false; h.group.visible = false; this.hurdles.splice(i, 1); }
+    }
+  }
+
+  // Is point p inside the action's hit ellipsoid around `zone`?
+  inZone(p, zone, ext) {
+    const dx = (p.x - zone.x) / ext[0], dy = (p.y - zone.y) / ext[1], dz = (p.z - zone.z) / ext[2];
+    return dx * dx + dy * dy + dz * dz <= 1;
+  }
+  // Swept: anywhere on the segment the fist travelled since the last sample.
+  sweptInZone(fist, zone, ext) {
+    for (let k = 0; k <= 4; k++) { _p.lerpVectors(fist.from, fist.position, k / 4); if (this.inZone(_p, zone, ext)) return true; }
+    return false;
   }
 
   checkFists(t, now, fists) {
@@ -212,16 +285,17 @@ export class Spawner {
     const order = a.hand === 'left' ? [fists.left, fists.right] : [fists.right, fists.left];
     for (const fist of order) {
       if (!fist.tracked) continue;
-      if (fist.position.distanceTo(t.zone) > TUNING.zoneRadius) continue;
+      if (!this.sweptInZone(fist, t.zone, a.zone)) continue;
       const peak = fist.peakSpeed(now);
       if (fist.speed < 0.3 && peak < TUNING.minHitSpeed) continue;
-      _v.copy(fist.velocity).normalize();
+      fist.peakVelocity(now, _v).normalize();
       _d.fromArray(a.dir).normalize();
-      const dot = fist.speed > 0.05 ? _v.dot(_d) : 0;
+      const dot = peak > 0.05 ? _v.dot(_d) : 0;
 
       if (fist.handedness === a.hand) {
         if (peak < TUNING.minHitSpeed || dot < -0.2) continue; // resting, or pulling back through the zone
-        if (this.strictDir && dot < TUNING.dirOk) { this.resolveWrong(t, now, fist, 'dir'); return; }
+        const need = a.arrow === 'up' ? TUNING.dirOkUpper : TUNING.dirOk;
+        if (this.strictDir && dot < need) { this.resolveWrong(t, now, fist, 'dir'); return; }
         const accuracy = Math.max(0, 1 - Math.abs(now - t.hitTime) / t.window);
         const power = Math.min(1, peak / TUNING.fullPowerSpeed);
         const swing = Math.min(1, fist.swingAlong(_d, now) / TUNING.fullSwing);
@@ -235,7 +309,6 @@ export class Spawner {
     }
   }
 
-  // Keyboard / touch: the player names the action they threw.
   keyPunch(actionId, now) {
     const t = this.current(now);
     if (!t) return false;
@@ -247,13 +320,13 @@ export class Spawner {
   }
 
   resolveHit(t, now, info) {
-    t.state = 'hit'; t.deadTime = now; t.ghost.visible = false;
+    t.state = 'hit'; t.deadTime = now;
     t.group.position.copy(t.zone);
     this.onHit && this.onHit(t, info);
   }
 
   resolveWrong(t, now, fist, why) {
-    t.state = 'missed'; t.deadTime = now; t.setTint(true); t.ghost.visible = false;
+    t.state = 'missed'; t.deadTime = now; t.setTint(true);
     this.onWrong && this.onWrong(t, fist, why);
   }
 }

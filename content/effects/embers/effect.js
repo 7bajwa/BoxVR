@@ -16,7 +16,7 @@ export default {
       burst(p, color, power) {
         sparks.emit(p, 26 + Math.round(power * 30), { color: 0xffa030, speed: [0.5, 2.4 * (0.6 + power)], up: 0.8, whiten: 0.6, life: [0.6, 1.2] });
         sparks.emit(p, 12, { color, speed: [0.5, 1.5], life: [0.3, 0.6] });
-        rings.fire(p, 0xff8a1a, { to: 0.6 });
+        rings.fire(p, 0xff8a1a, { to: 0.36 });
         for (let k = 0; k < 10; k++) {
           const d = data[next]; next = (next + 1) % N;
           d.life = 1.2; d.p.copy(p);

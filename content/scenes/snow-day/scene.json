@@ -1,0 +1,21 @@
+{
+  "name": "Snow Park",
+  "description": "Snowball fight in a sunny winter playground",
+  "module": "scene.js",
+  "target": "snowball",
+  "effect": "snow-puff",
+  "music": "snow-day",
+  "ambient": "winterday",
+  "gateColor": "#8fd8ff",
+  "colors": [
+    "#7fb2e6",
+    "#e8f2ff"
+  ],
+  "gloves": {
+    "type": "mitten",
+    "main": "hand",
+    "cuff": "#ffffff",
+    "trim": "#ffffff"
+  },
+  "hurdle": "branch"
+}

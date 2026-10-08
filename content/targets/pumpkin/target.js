@@ -1,7 +1,7 @@
 // Jack-o'-Lantern — low-poly ribbed pumpkin with a glowing carved face. The inner light takes
-// the action colour so each move is still recognisable.
+// the hand colour (blue = left, pink-red = right); the face looks the way the punch comes from.
 export default {
-  create({ THREE, kit, color }) {
+  create({ THREE, kit, color, action }) {
     const geo = new THREE.SphereGeometry(0.13, 14, 9);
     const p = geo.attributes.position;
     for (let i = 0; i < p.count; i++) {
@@ -24,11 +24,16 @@ export default {
     stem.position.y = 0.12; stem.rotation.z = 0.25;
     const light = kit.glowSprite(color.clone().lerp(new THREE.Color(0xff9a20), 0.5), 0.45, 0.6);
     light.position.z = 0.1;
-    const object = new THREE.Group(); object.add(body, faceMesh, stem, light);
+    const head = new THREE.Group(); head.add(body, faceMesh, stem, light);
+    // The pumpkin LOOKS toward where the punch comes from: left = hook from the left,
+    // right = hook from the right, down = uppercut, straight at you = jab / cross.
+    const gaze = { right: [0, -0.65], left: [0, 0.65], up: [0.55, 0], fwd: [0, 0] }[action.arrow] || [0, 0];
+    head.rotation.set(gaze[0], gaze[1], 0);
+    const object = new THREE.Group(); object.add(head);
     const base = faceCol.clone();
     return {
       object,
-      update(t) { face.color.copy(base).multiplyScalar(0.85 + 0.15 * Math.sin(t * 17) * Math.sin(t * 7)); object.rotation.z = Math.sin(t * 3) * 0.06; },
+      update(t) { face.color.copy(base).multiplyScalar(0.85 + 0.15 * Math.sin(t * 17) * Math.sin(t * 7)); head.rotation.z = Math.sin(t * 3) * 0.06; },
       flash(v) { shell.emissive.setRGB(0.35 + v * 0.6, 0.12 + v * 0.3, 0); object.scale.setScalar(1 + v * 0.15); },
       tint(gray) { shell.color.set(gray ? 0x55504a : 0xe0670f); shell.emissive.set(gray ? 0x000000 : 0x5a1e00); },
     };

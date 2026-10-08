@@ -175,6 +175,7 @@ export class AudioEngine {
       case 'arpud': { const seq = [...chord, chord[1]]; return [seq[c % seq.length] + oct]; }
       case 'seq': return [chord[0] + tr.seq[c % tr.seq.length] + oct];
       case 'fixed': return [tr.note];
+      case 'mel': { const m = tr.melody[c % tr.melody.length]; return m ? [m + oct] : []; }
       case 'root': return [chord[0] + oct];
       default: return [null];
     }
@@ -222,6 +223,8 @@ export class AudioEngine {
       case 'organ': return this.organ(f, t, dur, vel, out);
       case 'bell': return this.bell(f, t, vel, out);
       case 'riser': return this.riser(t, dur, vel, out);
+      case 'sleigh': return this.sleigh(t, vel, out);
+      case 'glock': return this.glock(f, t, vel, out);
       default: return null;
     }
   }
@@ -283,6 +286,12 @@ export class AudioEngine {
     car.start(t); mod.start(t); car.stop(t + 1.7); mod.stop(t + 1.7);
   }
 
+  sleigh(t, vel, out) { for (let k = 0; k < 4; k++) this.noiseHit(t + k * 0.012, out, 0.05 * vel, 0.08, 'highpass', 8500 + k * 400, 2); this.osc(2637, t, 0.06, 'square', 0.012 * vel, out, 9000); }
+  glock(freq, t, vel, out) {
+    if (!freq) return;
+    this.osc(freq * 2, t, 0.6, 'sine', 0.07 * vel, out, 9000, true, 0.002);
+    this.osc(freq * 5.4, t, 0.15, 'sine', 0.02 * vel, out, 12000, false, 0.001);
+  }
   kick(t, vel, out) {
     const ctx = this.ctx;
     const o = ctx.createOscillator(); const g = ctx.createGain();
@@ -356,9 +365,26 @@ export class AudioEngine {
         o.connect(g).connect(out); o.start(); this.ambientNodes.push(o);
       }
       const h = noiseLoop('highpass', 6000, 0.5, 0.012); lfo(h.g.gain, 0.04, 0.01);
+    } else if (type === 'snow') {           // snowy night: soft wind + distant sleigh bells
+      const a = noiseLoop('bandpass', 650, 0.6, 0.1); lfo(a.f.frequency, 0.05, 250); lfo(a.g.gain, 0.04, 0.06);
+      every(14, 28, () => { const t0 = this.ctx.currentTime; for (let k = 0; k < 10; k++) this.sleigh(t0 + k * 0.16, 0.5, this.ambBus); });
+    } else if (type === 'winterday') {      // bright winter day: light breeze + birdsong
+      const a = noiseLoop('bandpass', 900, 0.5, 0.05); lfo(a.g.gain, 0.06, 0.03);
+      every(3, 8, () => this.chirp());
     } else if (type === 'rain') {
       noiseLoop('highpass', 2500, 0.3, 0.05);
       const low = noiseLoop('lowpass', 200, 0.5, 0.06); lfo(low.g.gain, 0.03, 0.03);
+    }
+  }
+  chirp() {
+    const ctx = this.ctx, t = ctx.currentTime, out = this.ambBus;
+    const n = 2 + Math.floor(Math.random() * 3), base = 2600 + Math.random() * 1400;
+    for (let k = 0; k < n; k++) {
+      const o = ctx.createOscillator(); o.type = 'sine';
+      const s0 = t + k * 0.11;
+      o.frequency.setValueAtTime(base, s0); o.frequency.exponentialRampToValueAtTime(base * 1.5, s0 + 0.06);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, s0); g.gain.linearRampToValueAtTime(0.03, s0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, s0 + 0.08);
+      o.connect(g).connect(out); o.start(s0); o.stop(s0 + 0.1);
     }
   }
   foghorn() {
@@ -396,6 +422,8 @@ export class AudioEngine {
   }
   sfxMiss() { if (!this.ctx) return; const t = this.ctx.currentTime; this.osc(160, t, 0.25, 'sawtooth', 0.12, this.sfxBus, 400); this.osc(110, t + 0.08, 0.3, 'sawtooth', 0.1, this.sfxBus, 300); }
   sfxWrong() { if (!this.ctx) return; const t = this.ctx.currentTime; this.osc(220, t, 0.12, 'square', 0.1, this.sfxBus, 900); this.osc(207, t + 0.1, 0.15, 'square', 0.1, this.sfxBus, 900); }
+  sfxDodge() { if (!this.ctx) return; const t = this.ctx.currentTime; this.noiseHit(t, this.sfxBus, 0.25, 0.25, 'bandpass', 2500, 0.7); this.osc(660, t + 0.05, 0.12, 'triangle', 0.1, this.sfxBus, 5000); this.osc(990, t + 0.12, 0.15, 'triangle', 0.1, this.sfxBus, 5000); }
+  sfxBump() { if (!this.ctx) return; const t = this.ctx.currentTime; this.kick(t, 1.2, this.sfxBus); this.noiseHit(t, this.sfxBus, 0.6, 0.3, 'lowpass', 600); this.osc(90, t, 0.4, 'sawtooth', 0.15, this.sfxBus, 400); }
   sfxClick() { if (!this.ctx) return; this.osc(1400, this.ctx.currentTime, 0.05, 'triangle', 0.12, this.sfxBus, 8000); }
   sfxSpeedUp() { if (!this.ctx) return; const t = this.ctx.currentTime; this.riser(t, 0.8, 1, this.sfxBus); [523, 659, 784, 1047].forEach((f, i) => this.osc(f, t + 0.7 + i * 0.07, 0.25, 'square', 0.06, this.sfxBus, 4000)); }
   sfxGameOver() { if (!this.ctx) return; const t = this.ctx.currentTime; [392, 330, 262, 196].forEach((f, i) => this.osc(f, t + i * 0.18, 0.4, 'sawtooth', 0.1, this.sfxBus, 1200)); }

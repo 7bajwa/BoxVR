@@ -9,31 +9,43 @@ It has two modes:
 
 There are four scenes, each with its own targets, effects, music and ambient sound:
 
-| Scene | Targets | Effect | Music | Ambience |
-|---|---|---|---|---|
-| Neon City | holo cores | neon burst | Neon Drive (124 BPM) | rain |
-| Haunted Hollow (Halloween) | jack-o'-lanterns | pumpkin embers | Pumpkin Stomp (128) | wind + thunder |
-| Foghorn Point (lighthouse) | yellow light orbs | lantern mist | Tidal Light (116) | ocean + foghorn |
-| Deep Space | star crystals | neon burst | Hyper Jab (140) | space drone |
+| Scene | Targets | Effect | Music | Gloves | Hurdles |
+|---|---|---|---|---|---|
+| Neon City | holo cores | neon burst | Neon Drive (124 BPM) | boxing gloves | laser beams |
+| Haunted Hollow (Halloween) | jack-o'-lanterns | pumpkin embers | Pumpkin Stomp (128) | orange gloves | witch's brooms |
+| Foghorn Point (lighthouse) | yellow light orbs | lantern mist | Tidal Light (116) | yellow rain gloves | oars |
+| Deep Space | asteroids (gold + gem variants) | rubble | Hyper Jab (140) | astronaut gloves | metal trusses |
+| Jingle Street (Christmas night) | glass ornaments | glass & glitter | Jingle Rush (132) | Santa mittens | candy canes |
+| Snow Park (winter day) | snowballs | snow puff | Snow Day (122) | knitted mittens | snowy branches |
 
 ## Playing
 
-**Quest 3:** open the GitHub Pages URL in the Meta Quest Browser and tap **ENTER VR**. You can use hand-tracking (make fists) or Touch controllers.
+**Quest 3:** open the GitHub Pages URL in the Meta Quest Browser and tap **ENTER VR**. You can use hand-tracking (make fists) or Touch controllers. Your hands become gloves that match the scene.
 
-- **Menu hub.** Level select is in the middle, **Options** on the left and your local **Top 10** on the right. Point and pinch, or pull the trigger, to choose.
-- **Scenes.** Use the **‹ ›** arrows to change scene. In Song Levels, picking a level also loads its scene.
-- **Punching.** Hit each target with the matching hand as it reaches the gate.
-  - The arrows show the direction: chevrons on the side mean a hook coming across, chevrons below mean an uppercut, and a dot means a straight punch.
-  - With **Strict direction** on, a punch in the wrong direction counts as a mistake.
-- **Scoring.** Each hit is worth `35·timing + 35·power + 30·swing`, multiplied by your streak (up to ×2).
-  - **Power** is peak fist speed; **swing** is how far the fist travelled along the punch. A lazy tap scores about 40 points; a full, fast, on-beat punch scores about 100.
-- **Haptics.** Rumble scales with how hard and far you punched, up to the **Haptics** strength you set.
-- **Game over.** Three misses (or wrong punches) in a row end the run. Turn this off in Options.
-- **Speed ramp** (Endless). Starts at your chosen speed and adds 1× every minute until you break.
-- **Pause.** Press **B / Y**, use the ❚❚ button low on your left, or press the Meta button. Coming back to VR always shows **Continue / Restart / Main Menu**.
-- **Target height** (Options). Straight punches hit at this height, 160 cm by default, in 5 cm steps. Hooks and uppercuts are placed relative to it.
+- **Menu hub:** level select in the middle, **Options** on the left and your local **Top 10** on the right. Point and pinch, or pull the trigger, to choose. Use **‹ ›** to change scene.
+- **Two colours = which hand:** blue targets are for the left hand, pink-red targets for the right.
+- **Arrows = which direction:**
+  - a dot means a straight punch
+  - chevrons on the side mean a hook coming across
+  - chevrons below mean an uppercut
+  - Some targets also show the direction themselves: jack-o'-lanterns *look* toward the side the punch comes from, and ornaments carry a snowflake on that side.
+- **Hit volumes are forgiving:**
+  - straights can be met a little early
+  - uppercuts have a tall zone and are judged on the fastest, upward part of the punch
+  - short hand-tracking dropouts mid-punch are bridged
+- **Strict direction** (on by default): punching the wrong way counts as a mistake.
+- **Scoring:** each hit is worth `35·timing + 35·power + 30·swing`, multiplied by your streak (up to ×2). A lazy tap scores about 40 points; a full, fast punch about 100.
+- **Haptics:** rumble scales with how hard and far you punched, up to the **Haptics** strength you set.
+- **Hurdles** (on by default): bars and walls fly down the lane.
+  - **Duck** under a bar (lower your head by about 26 cm).
+  - **Lean or step** away from a wall (move your head about 15 cm past the centre).
+  - A clean dodge earns a bonus and keeps your streak. Getting hit counts as a mistake.
+- **Game over:** 3 mistakes or misses in a row (can be turned off).
+- **Speed ramp** (Endless): starts at your chosen speed and adds **+0.1× every 6 s**, which is smooth rather than a jump every minute.
+- **Pause:** press **B / Y**, use the ❚❚ button low on your left, or press the Meta button. Coming back always shows Continue / Restart / Main Menu.
+- **Target height** (Options): straight punches hit at this height, 160 cm by default.
 
-**Browser:** `S` `D` `F` throw left uppercut, hook and jab; `J` `K` `L` throw right cross, hook and uppercut. `Enter` plays, `Esc` pauses, and `←` `→` change scene. On phones, tap the pads.
+**Browser:** `S` `D` `F` throw left uppercut, hook and jab; `J` `K` `L` throw right cross, hook and uppercut. Hold `C`/`↓` to duck, and `Q`/`←` or `E`/`→` to lean. `Enter` plays and `Esc` pauses. On phones, tap the pads (hurdles are off on phones).
 
 ## Where scores are stored
 
@@ -70,7 +82,8 @@ All content lives in `/content`, one folder per item. It can be a JS module or a
 | `js/main.js` | Game orchestrator: states, endless/songs runs, ramp, game over, scores, XR, input |
 | `js/ui/panel.js`, `js/ui/menus.js` | Canvas panel toolkit + menu hub, pause, results, VR HUD |
 | `js/spawner.js`, `js/target.js` | Beat-clock spawner, hit judging (hand, direction, timing, power, swing), target framework |
-| `js/rig.js` | Quest rig: hands/controllers → fists, velocity, swing tracking, haptics, B/Y pause |
+| `js/rig.js`, `js/gloves.js` | Quest rig: hands/controllers → fists (gap bridging, peak velocity, swing), themed gloves, haptics, B/Y pause |
+| `js/hurdles.js` | Hurdle visuals (duck bars, side walls) per theme |
 | `js/audio.js` | Data-driven synth sequencer, audio-file songs, ambience, SFX |
 | `js/charts.js` | Chart builder (explicit notes or auto by song energy) |
 | `js/content.js`, `js/kit.js` | Content loader (JS modules + GLB) and the toolkit plugins receive |

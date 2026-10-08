@@ -7,5 +7,15 @@
   "music": "pumpkin-stomp",
   "ambient": "wind",
   "gateColor": "#ffb35f",
-  "colors": ["#5a3008", "#16302e"]
+  "colors": [
+    "#5a3008",
+    "#16302e"
+  ],
+  "gloves": {
+    "type": "boxing",
+    "main": "#e0670f",
+    "cuff": "#1a1a1a",
+    "trim": "hand"
+  },
+  "hurdle": "broom"
 }

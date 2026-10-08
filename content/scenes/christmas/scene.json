@@ -1,0 +1,22 @@
+{
+  "name": "Jingle Street",
+  "description": "Snowy Christmas night - Santa flies over the moon",
+  "module": "scene.js",
+  "target": "ornament",
+  "effect": "glass",
+  "music": "jingle-rush",
+  "ambient": "snow",
+  "gateColor": "#ffe08a",
+  "colors": [
+    "#7a1a1a",
+    "#1a4a2a"
+  ],
+  "gloves": {
+    "type": "mitten",
+    "main": "#d62b2b",
+    "cuff": "#ffffff",
+    "trim": "hand"
+  },
+  "hurdle": "candy",
+  "globalLight": 0.18
+}

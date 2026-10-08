@@ -61,13 +61,14 @@ export async function loadLevel(id) {
 export async function listLevels() {
   const reg = await loadRegistry();
   const out = [];
-  for (const id of reg.levels) {
+  const loaded = await Promise.all(reg.levels.map(async (id) => {
     try {
       const lvl = await loadLevel(id);
       const song = lvl.song ? await loadSong(lvl.song) : null;
-      out.push({ ...lvl, songInfo: song });
-    } catch (e) { console.warn('level', id, e); }
-  }
+      return { ...lvl, songInfo: song };
+    } catch (e) { console.warn('level', id, e); return null; }
+  }));
+  for (const l of loaded) if (l) out.push(l);
   for (const c of customLevels()) out.push({ ...c, id: 'custom:' + c.id, custom: true });
   return out;
 }

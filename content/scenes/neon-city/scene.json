@@ -7,5 +7,15 @@
   "music": "neon-drive",
   "ambient": "rain",
   "gateColor": "#8ff6ff",
-  "colors": ["#1b4b8a", "#3b1b6b"]
+  "colors": [
+    "#1b4b8a",
+    "#3b1b6b"
+  ],
+  "gloves": {
+    "type": "boxing",
+    "main": "hand",
+    "cuff": "#f2f2f2",
+    "trim": "#1a1a1a"
+  },
+  "hurdle": "laser"
 }

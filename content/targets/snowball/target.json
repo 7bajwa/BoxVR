@@ -1,0 +1,7 @@
+{
+  "name": "Snowball",
+  "module": "target.js",
+  "sfx": "thud",
+  "glow": 0.55,
+  "arc": 1.2
+}

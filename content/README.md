@@ -30,9 +30,16 @@ Modules can `import * as THREE from 'three'`. They also receive `ctx.kit` (see `
   "music": "neon-drive",     // song whose loop section plays in Endless + menu
   "ambient": "rain",         // rain | wind | ocean | space | null
   "gateColor": "#8ff6ff",
-  "colors": ["#1b4b8a", "#3b1b6b"]   // scene-picker gradient
+  "colors": ["#1b4b8a", "#3b1b6b"],  // scene-picker gradient
+  "gloves": { "type": "boxing", "main": "hand", "cuff": "#f2f2f2", "trim": "#1a1a1a" },
+  "hurdle": "laser",         // laser | broom | oar | metal | candy | branch
+  "globalLight": 0.55        // game-wide fill light; lower it for night scenes
 }
 ```
+
+- **`gloves.type`**: `boxing`, `mitten`, `astro` or `rubber`.
+- **Glove colours:** `"hand"` means the hand colour (left blue, right pink-red). Keep it on at least one part so players can tell the gloves apart.
+- **`ambient`**: `rain`, `wind`, `ocean`, `space`, `snow`, `winterday` or `null`.
 
 `scene.js` exports `create(ctx)`, which returns the scene:
 
@@ -86,6 +93,8 @@ Model tips:
 ```
 
 `sfx` is one of `zap`, `thud` or `chime`.
+
+`ring: true` adds a ring around the target (only the basic holo core uses one). `arc: 1.2` makes targets fly in a 1.2 m-high arc (snowballs). `arrows: false` hides the framework's direction arrows when your target shows direction itself.
 
 The framework always adds these around your body:
 
@@ -194,6 +203,7 @@ Use these for your CC0 tracks:
 ```
 
 - `auto: N` places a target every N beats. `auto: "dynamic"` follows section intensity.
+- `hurdles` (inside a difficulty) lists `[beat, "duck" | "left" | "right"]` pairs. `left` is a wall on the left, so the player moves right. If you leave it out, auto charts get hurdles on Normal and harder; hand-made charts only get the hurdles you place.
 - `notes` lists `[beat, action]` pairs. The actions are `JAB`, `CROSS`, `L_HOOK`, `R_HOOK`, `L_UPPER` and `R_UPPER`. If you leave the action out, the BOXFLOW combo order is used.
 
 **Shipping a Level Creator export:**

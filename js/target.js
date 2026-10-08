@@ -1,8 +1,8 @@
 // BOXFLOW — target framework. A target style (content/targets/<id>) supplies only the BODY;
-// the framework adds what every target needs: dark backplate (contrast against haze), action
-// colour glow + ring, a clear direction marker, label, approach ring, fades and tints.
+// the framework adds what every target needs: dark backplate (contrast against haze),
+// hand-colour glow (blue = left, pink-red = right), direction arrows, optional ring, fades and tints.
 import * as THREE from 'three';
-import { ACTIONS, hex } from './config.js';
+import { ACTIONS } from './config.js';
 import * as kit from './kit.js';
 
 export { glowTexture as getGlowTexture, textSprite as makeTextSprite } from './kit.js';
@@ -51,7 +51,8 @@ export class Target {
       map: kit.glowTexture(), color: this.color, transparent: true, opacity: meta.glow ?? 0.55,
       depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
     }))), 5);
-    this.glow.scale.setScalar(meta.glowScale ?? 0.75);
+    this.glow.scale.setScalar(meta.glowScale ?? 0.85);
+    this.glow.position.z = -0.05;        // hand-colour glow BEHIND the target: blue = left, pink-red = right
 
     // Body from the style plugin.
     this.body = null;
@@ -72,7 +73,7 @@ export class Target {
       });
     }
 
-    if (meta.ring !== false) {
+    if (meta.ring === true) {          // only styles that ask for it (the basic holo core)
       this.ring = add(new THREE.Mesh(geo.ring, basic(0.95)));
       this.ring.scale.setScalar(meta.ringScale ?? 1);
     }
@@ -100,16 +101,7 @@ export class Target {
     this.mark.traverse((o) => { o.renderOrder = 7; });
     this.group.add(this.mark);
 
-    this.label = add(kit.textSprite(a.label, hex(a.color), { scale: 0.085 }), 7);
-    this.track(this.label.material);
-    this.label.position.y = meta.labelY ?? 0.27;
-
-    // Approach ring (lives in world space at the hit zone).
-    this.ghost = new THREE.Mesh(geo.approach, new THREE.MeshBasicMaterial({
-      color: this.color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
-    }));
-    this.ghost.renderOrder = 6;
-    this.ghost.visible = false;
+    if (meta.arrows === false) this.mark.visible = false;   // style shows direction itself
 
     this.reset();
   }
@@ -127,7 +119,6 @@ export class Target {
     this.state = 'idle';
     this.group.visible = false;
     this.group.scale.setScalar(1);
-    this.ghost.visible = false;
     this.setOpacity(1);
     this.setTint(false);
     this.flash(0);
@@ -159,7 +150,7 @@ export class Target {
   }
 
   dispose() {
-    this.group.removeFromParent(); this.ghost.removeFromParent();
+    this.group.removeFromParent();
     if (this.body && this.body.dispose) this.body.dispose();
   }
 }

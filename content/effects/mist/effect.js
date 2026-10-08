@@ -12,7 +12,7 @@ export default {
       burst(p, color, power) {
         sparkle.emit(p, 30 + Math.round(power * 25), { color: 0xfff0c0, speed: [0.3, 1.8 * (0.6 + power)], whiten: 0.7, life: [0.6, 1.1] });
         sparkle.emit(p, 10, { color, speed: [0.3, 1.0], life: [0.4, 0.7] });
-        rings.fire(p, 0xffd78a, { life: 0.6, to: 0.8 });
+        rings.fire(p, 0xffd78a, { life: 0.5, to: 0.42 });
         for (let k = 0; k < 2; k++) {
           const s = puffs[next]; next = (next + 1) % puffs.length;
           s.position.copy(p); s.userData.life = 0.9; s.userData.max = 0.9; s.visible = true;

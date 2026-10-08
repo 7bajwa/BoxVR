@@ -41,27 +41,27 @@ export class MenuUI {
   markAll() { for (const p of this.panels) p.dirty = true; }
 
   // ---------------------------------------------------------------- layout / visibility
+  // Panels sit a little BELOW eye level, tilted up toward you, ~1.45 m away, with clear gaps.
   layout(anchor, targetH) {
-    const y = anchor.y - 0.08, R = 1.12;
+    const y = anchor.y - 0.3, R = 1.45, TILT = -0.12;
     const place = (p, ang, r = R, dy = 0) => {
       p.mesh.position.set(anchor.x - Math.sin(ang) * r, y + dy, anchor.z - Math.cos(ang) * r);
-      p.mesh.rotation.set(0, ang, 0);
+      p.mesh.rotation.set(TILT, ang, 0, 'YXZ');
     };
-    const narrowSide = this.narrow && !this.vr;
     place(this.levels, 0);
-    if (this.vr) {             // wrap-around arc in the headset
-      place(this.options, 40 * DEG, 1.02);
-      place(this.scores, -40 * DEG, 1.02);
-    } else if (narrowSide) {   // phones: one panel at a time
+    if (this.vr) {             // wrap-around arc in the headset, ~6 deg gap each side
+      place(this.options, 38 * DEG, 1.4);
+      place(this.scores, -38 * DEG, 1.4);
+    } else if (this.narrow) {  // phones: one panel at a time
       place(this.options, 0); place(this.scores, 0);
-    } else {                   // flat screens: side by side, slightly angled
+    } else {                   // flat screens: side by side with a gap, slightly angled
       const flatSide = (p, s) => {
-        p.mesh.position.set(anchor.x + s * 0.86, y, anchor.z - R + 0.09);
-        p.mesh.rotation.set(0, -s * 15 * DEG, 0);
+        p.mesh.position.set(anchor.x + s * 0.94, y, anchor.z - R + 0.1);
+        p.mesh.rotation.set(TILT, -s * 14 * DEG, 0, 'YXZ');
       };
       flatSide(this.options, -1); flatSide(this.scores, 1);
     }
-    place(this.modal, 0, 1.05, 0.02);
+    place(this.modal, 0, 1.3, 0.04);
     this.hud.mesh.position.set(anchor.x, targetH - 0.92, anchor.z - 1.3);
     this.hud.mesh.rotation.set(-Math.atan2(0.9, 1.3), 0, 0);
     this.mini.mesh.position.set(anchor.x - 0.62, anchor.y - 0.72, anchor.z - 0.55);
@@ -181,10 +181,10 @@ export class MenuUI {
     p.text('0.1×', 175, 595, { size: 22, color: C.dim }); p.text('1×', 175 + 425, 595, { size: 22, color: C.dim, align: 'center' });
     p.text('10×', 1025, 595, { size: 22, color: C.dim, align: 'right' });
 
-    p.text(prefs.ramp ? `⚡ SPEED RAMP ON — starts at ${prefs.speed.toFixed(1)}×, +1× every minute until you break`
+    p.text(prefs.ramp ? `⚡ SPEED RAMP ON — starts at ${prefs.speed.toFixed(1)}×, +0.1× every 6 s until you break`
       : 'Speed ramp is off — turn it on in Options for a rising challenge', W / 2, 650,
     { size: 26, weight: 700, align: 'center', color: prefs.ramp ? C.yellow : C.muted, maxW: 1080 });
-    p.text(`Game over after 3 misses in a row: ${prefs.gameOver ? 'ON' : 'OFF'}   ·   Strict direction: ${prefs.strictDir ? 'ON' : 'OFF'}`,
+    p.text(`Game over: ${prefs.gameOver ? 'ON' : 'OFF'}   ·   Strict direction: ${prefs.strictDir ? 'ON' : 'OFF'}   ·   Hurdles: ${prefs.hurdles ? 'ON' : 'OFF'}`,
       W / 2, 692, { size: 24, weight: 600, align: 'center', color: C.muted });
 
     // the fixed combo
@@ -244,24 +244,25 @@ export class MenuUI {
     p.glass();
     p.title('OPTIONS', 78, 56);
     const row = (i, label, sub) => {
-      const y = 150 + i * 104;
-      p.text(label, 50, y + 22, { size: 33, weight: 700 });
-      if (sub) p.text(sub, 50, y + 56, { size: 21, weight: 600, color: C.muted, maxW: 470 });
+      const y = 140 + i * 94;
+      p.text(label, 50, y + 20, { size: 32, weight: 700 });
+      if (sub) p.text(sub, 50, y + 52, { size: 20, weight: 600, color: C.muted, maxW: 470 });
       if (i) { g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(50, y - 12, W - 100, 2); }
       return y;
     };
-    const tog = (i, key, label, sub) => { const y = row(i, label, sub); p.toggle('opt-' + key, W - 50 - 110, y + 6, o[key], () => game.setPref(key, !o[key])); };
+    const tog = (i, key, label, sub) => { const y = row(i, label, sub); p.toggle('opt-' + key, W - 50 - 110, y + 4, o[key], () => game.setPref(key, !o[key])); };
     tog(0, 'gameOver', 'Game over', '3 misses in a row ends the run');
-    tog(1, 'ramp', 'Speed ramp', 'Endless: +1× every minute');
-    tog(2, 'strictDir', 'Strict direction', "Punch must follow the target's arrows");
-    let y = row(3, 'Target height', 'Straight-punch height');
-    p.stepper('th', W - 50 - 270, y + 4, 270, `${o.targetHeight} cm`, () => game.setPref('targetHeight', Math.max(100, o.targetHeight - 5)), () => game.setPref('targetHeight', Math.min(220, o.targetHeight + 5)));
-    y = row(4, 'Haptics', 'Max rumble on hardest hits');
-    p.stepper('hp', W - 50 - 270, y + 4, 270, o.haptics ? `${o.haptics}%` : 'OFF', () => game.setPref('haptics', Math.max(0, o.haptics - 10)), () => game.setPref('haptics', Math.min(100, o.haptics + 10)));
-    tog(5, 'music', 'Music', null);
-    y = row(6, 'Haze', null);
-    ['LOW', 'MED', 'HIGH'].forEach((n, i) => p.button('haze' + i, W - 50 - 300 + i * 102, y, 96, 60, n, { on: o.haze === i, size: 24, onClick: () => game.setPref('haze', i) }));
-    tog(7, 'reflections', 'Reflections', 'Wet floor / water mirror');
+    tog(1, 'ramp', 'Speed ramp', 'Endless: +0.1x every 6 seconds');
+    tog(2, 'strictDir', 'Strict direction', 'Punch must follow the arrows');
+    tog(3, 'hurdles', 'Hurdles', 'Duck under bars, lean around walls');
+    let y = row(4, 'Target height', 'Straight-punch height');
+    p.stepper('th', W - 50 - 270, y + 2, 270, `${o.targetHeight} cm`, () => game.setPref('targetHeight', Math.max(100, o.targetHeight - 5)), () => game.setPref('targetHeight', Math.min(220, o.targetHeight + 5)));
+    y = row(5, 'Haptics', 'Max rumble on hardest hits');
+    p.stepper('hp', W - 50 - 270, y + 2, 270, o.haptics ? `${o.haptics}%` : 'OFF', () => game.setPref('haptics', Math.max(0, o.haptics - 10)), () => game.setPref('haptics', Math.min(100, o.haptics + 10)));
+    tog(6, 'music', 'Music', null);
+    y = row(7, 'Haze', null);
+    ['LOW', 'MED', 'HIGH'].forEach((n, i) => p.button('haze' + i, W - 50 - 300 + i * 102, y - 4, 96, 58, n, { on: o.haze === i, size: 24, onClick: () => game.setPref('haze', i) }));
+    tog(8, 'reflections', 'Reflections', 'Wet floor / water mirror');
 
     if (this.vr) {
       p.button('recenter', 50, 1000, 340, 86, '⟲ RECENTER', { size: 30, onClick: () => game.recenter() });

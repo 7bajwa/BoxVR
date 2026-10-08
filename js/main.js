@@ -9,7 +9,8 @@ import { Spawner } from './spawner.js';
 import { FXCore } from './fx.js';
 import { VRRig } from './rig.js';
 import { MenuUI } from './ui/menus.js';
-import { buildChart } from './charts.js';
+import { buildChart, buildHurdles } from './charts.js';
+import { buildGlove } from './gloves.js';
 import * as kit from './kit.js';
 import { loadPrefs, savePrefs, boardKey, topScores, addScore } from './storage.js';
 import {
@@ -31,7 +32,8 @@ scene.background = new THREE.Color(0x05070d);
 const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.03, 1200);
 camera.position.set(0, 1.62, 0.6);
 scene.add(camera);
-scene.add(new THREE.HemisphereLight(0xc8dcff, 0x1a1a2a, 0.55)); // keeps any target style readable in any scene
+const globalLight = new THREE.HemisphereLight(0xc8dcff, 0x1a1a2a, 0.55); // keeps any target style readable in any scene
+scene.add(globalLight);
 
 const spawner = new Spawner(scene);
 const fx = new FXCore(scene);
@@ -59,6 +61,49 @@ const clock = {
     return perf + this.offset;
   },
 };
+
+// ---------------------------------------------------------------- desktop gloves (non-VR)
+// Two gloves at the bottom of the screen that throw the punch you key in.
+const deskGloves = {
+  root: new THREE.Group(), hands: {}, anim: {},
+  rest: { left: new THREE.Vector3(-0.17, -0.2, -0.55), right: new THREE.Vector3(0.17, -0.2, -0.55) },
+  setStyle(style) {
+    for (const h of ['left', 'right']) {
+      if (this.hands[h]) this.root.remove(this.hands[h]);
+      const g = buildGlove(h, style); g.scale.setScalar(0.85);
+      g.userData.halo.visible = false;
+      g.rotation.set(0.5, h === 'left' ? -0.2 : 0.2, 0, 'YXZ');   // pitch up: knuckles toward the target
+      this.hands[h] = g; this.root.add(g);
+    }
+  },
+  punch(action) { this.anim[action.hand] = { t: 0, kind: action.arrow }; },
+  update(dt, visible) {
+    this.root.visible = visible;
+    if (!visible) return;
+    for (const h of ['left', 'right']) {
+      const g = this.hands[h]; if (!g) continue;
+      const side = h === 'left' ? -1 : 1;
+      g.position.copy(this.rest[h]);
+      g.position.y += Math.sin(performance.now() / 300 + side) * 0.006; // guard bob
+      const a = this.anim[h];
+      if (a) {
+        a.t += dt; const p = Math.min(1, a.t / 0.24), e = Math.sin(Math.PI * p);
+        if (a.kind === 'fwd') g.position.add(_tv.set(-side * 0.1 * e, 0.12 * e, -0.38 * e));
+        else if (a.kind === 'up') g.position.add(_tv.set(-side * 0.08 * e, 0.24 * e - 0.05 * (1 - e), -0.22 * e));
+        else g.position.add(_tv.set(side * 0.12 * Math.cos(Math.PI * p) - side * 0.12, 0.14 * e, -0.3 * e));
+        if (p >= 1) this.anim[h] = null;
+      }
+    }
+  },
+};
+const _tv = new THREE.Vector3();
+camera.add(deskGloves.root);
+deskGloves.setStyle();
+
+// Desktop dodging: hold C / Down to duck, Q / Left and E / Right to lean.
+const dodgeKeys = { duck: false, left: false, right: false };
+const deskHead = new THREE.Vector3(), deskOff = new THREE.Vector2(), headTmp = new THREE.Vector3();
+const isTouch = matchMedia('(pointer: coarse)').matches;
 
 // ---------------------------------------------------------------- game
 const RESUME_LEAD = 0.8;
@@ -91,6 +136,7 @@ const game = {
       case 'reflections': this.sceneInst && this.sceneInst.setReflections && this.sceneInst.setReflections(val); break;
       case 'targetHeight': applyAnchor(); break;
       case 'strictDir': spawner.strictDir = val; break;
+      case 'hurdles': spawner.hurdlesOn = val; break;
       case 'speed': if (this.state === 'playing' && this.run.mode === 'endless' && !prefs.ramp) applySpeed(val); break;
       case 'mode': case 'level': menuMusic(); break;
       default: break;
@@ -247,8 +293,12 @@ async function activateScene(id) {
   inst.setHaze && inst.setHaze(prefs.haze);
   inst.setReflections && inst.setReflections(prefs.reflections);
   gateBase.set(meta.gateColor || '#8ff6ff');
+  globalLight.intensity = meta.globalLight ?? 0.55;   // night scenes turn the fill light down
   applyAnchor();
   audio.setAmbient(meta.ambient || null);
+  rig.setGloves(meta.gloves);
+  deskGloves.setStyle(meta.gloves);
+  spawner.setHurdleStyle(meta.hurdle || 'laser');
   if (game.state === 'menu') menuMusic();
   game.changed();
 }
@@ -317,6 +367,7 @@ async function startRun() {
     scoring.start(now);
     applyAnchor();
     spawner.strictDir = prefs.strictDir;
+    spawner.hurdlesOn = prefs.hurdles && (renderer.xr.isPresenting || !isTouch);
     const startSpeed = prefs.speed;
     game.run = { mode: 'endless', song, board, startSpeed, speed: startSpeed, maxSpeed: startSpeed };
     const anchorBeat = spawner.startEndless(now, startSpeed);
@@ -331,18 +382,20 @@ async function startRun() {
     let buffer = null;
     if (song.type === 'audio') { buffer = await audio.loadBuffer(song.audioUrl); song.duration = buffer.duration; }
     const chart = buildChart(lvl, song, prefs.difficulty);
+    const hurdleBeats = buildHurdles(lvl, song, prefs.difficulty, chart);
     const travel = DIFF_TRAVEL[prefs.difficulty] || 2.2;
     const now = clock.now();
     scoring.start(now);
     applyAnchor();
     spawner.strictDir = prefs.strictDir;
+    spawner.hurdlesOn = prefs.hurdles && (renderer.xr.isPresenting || !isTouch);
     const songStart = now + Math.max(2.5, travel + 0.8);
     const spb = 60 / song.bpm;
     const offset = song.offset || 0;
     const notes = chart.map((n) => ({ time: songStart + offset + n.beat * spb, action: n.action }));
     const dur = song.type === 'audio' ? song.duration : songDuration(song);
     game.run = { mode: 'songs', level: lvl, song, board, difficulty: prefs.difficulty, songStart, songEnd: songStart + dur, ended: false };
-    spawner.startChart(notes, travel);
+    spawner.startChart(notes, travel, hurdleBeats.map((h) => ({ time: songStart + offset + h.beat * spb, type: h.type })));
     audio.onSongEnd = () => { if (game.run) game.run.ended = true; };
     if (buffer) audio.playBuffer(buffer, songStart, 0);
     else audio.playSynth(song, { mode: 'song', t0: songStart, spb });
@@ -397,6 +450,7 @@ function applySpeed(s) {
 // ---------------------------------------------------------------- gameplay events
 spawner.onHit = (t, { accuracy, power, swing, form, fist }) => {
   const pts = scoring.hit(accuracy, power, swing, form);
+  if (fist) fist.punchFx();
   fx.burst(t.zone, t.action.color, power);
   fx.word(grade(accuracy), t.zone);
   flashGate(t.action.color);
@@ -421,6 +475,21 @@ spawner.onWrong = (t, fist, why) => {
   audio.sfxWrong();
   if (fist && prefs.haptics > 0) fist.pulse(prefs.haptics / 100 * 0.5, 140);
   htmlUI.flash(0xff9a3c, true);
+  checkGameOver();
+};
+// Hurdles: a clean dodge is worth a few points and keeps the streak; getting hit is a mistake.
+spawner.onDodge = () => {
+  const pts = scoring.dodge();
+  fx.word('DODGE', new THREE.Vector3(game.anchor.x, game.targetH + 0.1, game.anchor.z - 0.9), 0);
+  audio.sfxDodge();
+  htmlUI.flash(0x5fffb0, false, pts);
+};
+spawner.onBump = () => {
+  scoring.mistake();
+  fx.word('OUCH', new THREE.Vector3(game.anchor.x, game.targetH + 0.1, game.anchor.z - 0.9), 0);
+  audio.sfxBump();
+  if (prefs.haptics > 0) for (const f of Object.values(rig.fists)) f.pulse(prefs.haptics / 100, 220);
+  htmlUI.flash(0xff4d6a, true);
   checkGameOver();
 };
 function checkGameOver() {
@@ -467,14 +536,14 @@ function desktopCamera(dt) {
   const hf = Math.atan(Math.tan(vf) * aspect);
   ui.narrow = aspect < 1.15;
   if (game.state === 'playing') {
-    camGoal.set(a.x, game.targetH + 0.16, a.z + (aspect < 1 ? 1.7 : 0.85));
+    camGoal.set(a.x + deskOff.x, game.targetH + 0.16 + deskOff.y, a.z + (aspect < 1 ? 1.7 : 0.85));
     lookGoal.set(a.x, game.targetH - 0.1, a.z - 2.6);
   } else {
-    const halfW = ui.narrow ? 0.52 : 1.2, edgeZ = ui.narrow ? 1.12 : 0.95;
+    const halfW = ui.narrow ? 0.52 : 1.3, edgeZ = ui.narrow ? 1.45 : 1.28;
     const zW = halfW / Math.tan(hf * 0.94) - edgeZ;
-    const zH = 0.52 / Math.tan(vf * 0.94) - 1.12;
-    camGoal.set(a.x, a.y - 0.06, a.z + Math.max(0, zW, zH));
-    lookGoal.set(a.x, a.y - 0.08, a.z - 1.1);
+    const zH = 0.52 / Math.tan(vf * 0.94) - 1.45;
+    camGoal.set(a.x, a.y - 0.26, a.z + Math.max(0, zW, zH));
+    lookGoal.set(a.x, a.y - 0.3, a.z - 1.45);
   }
   const k = Math.min(1, dt * 4);
   camera.position.lerp(camGoal, k);
@@ -512,15 +581,28 @@ function frame() {
     }
   }
 
+  // desktop virtual head (dodging with keys)
+  const kk = Math.min(1, dt * 12);
+  deskOff.x += ((dodgeKeys.right ? 0.35 : 0) - (dodgeKeys.left ? 0.35 : 0) - deskOff.x) * kk;
+  deskOff.y += ((dodgeKeys.duck ? -0.4 : 0) - deskOff.y) * kk;
+  deskHead.set(game.anchor.x + deskOff.x, game.anchor.y + deskOff.y, game.anchor.z);
+  deskGloves.update(dt, !xr && playing);
+
   if (playing) {
-    spawner.update(now, dt, xr ? rig.fists : null, viewCam);
+    const head = xr ? viewCam.getWorldPosition(headTmp) : deskHead;
+    spawner.update(now, dt, xr ? rig.fists : null, viewCam, head);
     const r = game.run;
     if (r.mode === 'endless' && prefs.ramp) {
-      const s = Math.min(SPEED.max, r.startSpeed + Math.floor(scoring.duration(now) / 60));
+      // smooth ramp: +0.1x every 6 s (about +1x per minute, no sudden jumps)
+      const steps = Math.floor(scoring.duration(now) / TUNING.rampEvery);
+      const s = Math.min(SPEED.max, Math.round((r.startSpeed + steps * TUNING.rampStep) * 10) / 10);
       if (s !== r.speed) {
+        const crossedWhole = Math.floor(s) > Math.floor(r.speed);
         applySpeed(s);
-        fx.announce(`SPEED ${s.toFixed(0)}×`, new THREE.Vector3(game.anchor.x, game.targetH + 0.45, game.anchor.z - 2.4), '#ffb35f');
-        audio.sfxSpeedUp();
+        if (crossedWhole) {
+          fx.announce(`SPEED ${s.toFixed(0)}×`, new THREE.Vector3(game.anchor.x, game.targetH + 0.45, game.anchor.z - 2.4), '#ffb35f');
+          audio.sfxSpeedUp();
+        }
       }
     }
     if (r.mode === 'songs' && spawner.done && (r.ended || now > r.songEnd + 0.5 || now > (spawner.notes.at(-1)?.time ?? 0) + 3)) finishRun('complete');
@@ -620,6 +702,7 @@ function punch(actionId) {
   if (game.state !== 'playing') return;
   const a = ACTIONS[actionId];
   if (a.pad) { a.pad.classList.remove('hit'); void a.pad.offsetWidth; a.pad.classList.add('hit'); }
+  deskGloves.punch(a);
   spawner.keyPunch(actionId, clock.now());
 }
 
@@ -641,34 +724,44 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (game.state === 'menu' && (k === 'arrowleft' || k === 'arrowright')) { game.cycleScene(k === 'arrowleft' ? -1 : 1); return; }
+  if (setDodge(k, true)) { e.preventDefault(); return; }
   if (KEYMAP[k]) punch(KEYMAP[k]);
 });
+window.addEventListener('keyup', (e) => setDodge(e.key.toLowerCase(), false));
+function setDodge(k, on) {
+  if (k === 'c' || k === 'arrowdown') { dodgeKeys.duck = on; return true; }
+  if (k === 'q' || k === 'arrowleft') { dodgeKeys.left = on; return true; }
+  if (k === 'e' || k === 'arrowright') { dodgeKeys.right = on; return true; }
+  return false;
+}
 
 // ---------------------------------------------------------------- boot
 async function boot() {
   htmlUI.init();
   spawner.strictDir = prefs.strictDir;
+  spawner.hurdlesOn = prefs.hurdles;
   audio.setMusic(prefs.music);
   try {
     const reg = await loadRegistry();
-    for (const id of reg.scenes) {
+    // load all scene metadata in parallel (keeps registry order)
+    const metas = await Promise.all(reg.scenes.map(async (id) => {
       try {
         const { meta } = await loadScene(id);
-        game.sceneMetas[id] = meta;
         if (meta.music) { try { meta.musicName = (await loadSong(meta.music)).name; } catch { /* */ } }
-        game.sceneList.push(id);
-      } catch (e) { console.warn('scene', id, e); }
-    }
+        return meta;
+      } catch (e) { console.warn('scene', id, e); return null; }
+    }));
+    reg.scenes.forEach((id, i) => { if (metas[i]) { game.sceneMetas[id] = metas[i]; game.sceneList.push(id); } });
     game.levelList = await listLevels();
-    for (const lvl of game.levelList) {
+    await Promise.all(game.levelList.map(async (lvl) => {
       try {
         const song = await songForLevel(lvl);
         if (song.type === 'synth') {
           lvl.durationText = fmtTime(songDuration(song));
-          lvl.counts = Object.fromEntries(DIFFICULTIES.map((d) => [d, buildChart(lvl, song, d).length]));
+          lvl.counts = Object.fromEntries(DIFFICULTIES.map((d) => { const ch = buildChart(lvl, song, d); buildHurdles(lvl, song, d, ch); return [d, ch.length]; }));
         } else if (song.duration) lvl.durationText = fmtTime(song.duration);
       } catch (e) { console.warn(e); }
-    }
+    }));
   } catch (e) {
     console.error(e);
     $('note').textContent = 'Could not load content/registry.json — serve the folder over http(s).';

@@ -5,7 +5,7 @@ import * as kit from './kit.js';
 
 const WORDS = {
   PERFECT: ['PERFECT', '#ffd84a'], GREAT: ['GREAT', '#4ee8ff'], GOOD: ['GOOD', '#ffffff'],
-  MISS: ['MISS', '#ff4d6a'], WRONG: ['WRONG HAND', '#ff9a3c'], WRONGDIR: ['WRONG DIRECTION', '#ff9a3c'],
+  MISS: ['MISS', '#ff4d6a'], DODGE: ['DODGE!', '#5fffb0'], OUCH: ['OUCH!', '#ff4d6a'], WRONG: ['WRONG HAND', '#ff9a3c'], WRONGDIR: ['WRONG DIRECTION', '#ff9a3c'],
 };
 
 export class FXCore {

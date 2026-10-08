@@ -1,0 +1,6 @@
+{
+  "name": "Christmas Ornament",
+  "module": "target.js",
+  "sfx": "chime",
+  "glow": 0.5
+}

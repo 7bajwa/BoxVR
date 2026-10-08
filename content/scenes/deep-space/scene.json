@@ -1,11 +1,21 @@
 {
   "name": "Deep Space",
-  "description": "A low-poly highway out among planets and asteroids",
+  "description": "Defend your satellite from incoming asteroids",
   "module": "scene.js",
-  "target": "crystal",
-  "effect": "neon-burst",
+  "target": "asteroid",
+  "effect": "rubble",
   "music": "hyper-jab",
   "ambient": "space",
   "gateColor": "#c3a0ff",
-  "colors": ["#2f1a66", "#05051a"]
+  "colors": [
+    "#2f1a66",
+    "#05051a"
+  ],
+  "gloves": {
+    "type": "astro",
+    "main": "#f0f0f2",
+    "cuff": "#9aa0aa",
+    "trim": "hand"
+  },
+  "hurdle": "metal"
 }

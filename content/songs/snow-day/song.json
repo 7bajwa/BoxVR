@@ -1,0 +1,199 @@
+{
+  "name": "Snow Day",
+  "artist": "BOXFLOW Synth",
+  "license": "CC0 (procedural)",
+  "type": "synth",
+  "bpm": 122,
+  "progression": [
+    [
+      53,
+      57,
+      60
+    ],
+    [
+      48,
+      52,
+      55
+    ],
+    [
+      50,
+      53,
+      57
+    ],
+    [
+      46,
+      50,
+      53
+    ],
+    [
+      53,
+      57,
+      60
+    ],
+    [
+      48,
+      52,
+      55
+    ],
+    [
+      55,
+      59,
+      62
+    ],
+    [
+      48,
+      52,
+      55
+    ]
+  ],
+  "tracks": {
+    "kick": {
+      "inst": "kick",
+      "pattern": "X...x...X...x..."
+    },
+    "clap": {
+      "inst": "clap",
+      "pattern": "....x.......x..."
+    },
+    "shaker": {
+      "inst": "shaker",
+      "pattern": "xoxoxoxoxoxoxoxo",
+      "vol": 0.7
+    },
+    "openhat": {
+      "inst": "openhat",
+      "pattern": "..x...x...x...x."
+    },
+    "bass": {
+      "inst": "bass",
+      "pattern": "x..x..x.x..x..x.",
+      "notes": "root",
+      "octave": -1,
+      "cutoff": 750
+    },
+    "pad": {
+      "inst": "pad",
+      "pattern": "x...............",
+      "notes": "chord",
+      "len": 16,
+      "cutoff": 1600
+    },
+    "glock": {
+      "inst": "glock",
+      "pattern": "x.xx.x.xx.x.x.x.",
+      "notes": "arpud",
+      "octave": 1
+    },
+    "bell": {
+      "inst": "bell",
+      "pattern": "x.......x...x...",
+      "notes": "seq",
+      "seq": [
+        12,
+        16,
+        19,
+        16,
+        12,
+        7
+      ],
+      "vol": 0.8
+    },
+    "lead": {
+      "inst": "pluck",
+      "pattern": "x..x..x.x..x.x..",
+      "notes": "seq",
+      "seq": [
+        12,
+        14,
+        16,
+        19,
+        16,
+        14,
+        12,
+        7
+      ],
+      "octave": 0,
+      "wave": "square",
+      "cutoff": 3000,
+      "vol": 0.8
+    }
+  },
+  "sections": [
+    {
+      "name": "intro",
+      "bars": 8,
+      "intensity": 0,
+      "tracks": [
+        "pad",
+        "glock",
+        "shaker"
+      ]
+    },
+    {
+      "name": "build",
+      "bars": 8,
+      "intensity": 1,
+      "tracks": [
+        "kick",
+        "shaker",
+        "bass",
+        "pad",
+        "glock"
+      ]
+    },
+    {
+      "name": "drop",
+      "bars": 16,
+      "intensity": 2,
+      "tracks": [
+        "kick",
+        "clap",
+        "shaker",
+        "openhat",
+        "bass",
+        "pad",
+        "glock",
+        "bell",
+        "lead"
+      ]
+    },
+    {
+      "name": "break",
+      "bars": 8,
+      "intensity": 1,
+      "tracks": [
+        "pad",
+        "glock",
+        "bell",
+        "clap"
+      ]
+    },
+    {
+      "name": "drop2",
+      "bars": 16,
+      "intensity": 2,
+      "tracks": [
+        "kick",
+        "clap",
+        "shaker",
+        "openhat",
+        "bass",
+        "pad",
+        "glock",
+        "bell",
+        "lead"
+      ]
+    },
+    {
+      "name": "outro",
+      "bars": 4,
+      "intensity": 0,
+      "tracks": [
+        "pad",
+        "glock",
+        "bell"
+      ]
+    }
+  ],
+  "loopSection": "drop"
+}

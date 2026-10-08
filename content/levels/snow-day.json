@@ -1,9 +1,9 @@
 {
-  "name": "Hyper Jab",
-  "song": "hyper-jab",
-  "scene": "deep-space",
-  "target": "asteroid",
-  "effect": "rubble",
+  "name": "Snow Day",
+  "song": "snow-day",
+  "scene": "snow-day",
+  "target": "snowball",
+  "effect": "snow-puff",
   "charts": {
     "easy": {
       "auto": "dynamic"

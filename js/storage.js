@@ -14,9 +14,10 @@ export const DEFAULT_PREFS = {
   level: 'neon-drive',
   difficulty: 'normal',
   speed: 1,
-  ramp: false,            // endless: +1× every minute
+  ramp: false,            // endless: +0.1× every 6 s
   gameOver: true,         // 3 misses in a row ends the run
   strictDir: true,        // wrong punch direction counts as a mistake
+  hurdles: true,          // dodge bars/barriers flying down the lane
   targetHeight: 160,      // cm — straight punches hit at this height
   haptics: 80,            // % of max controller rumble
   music: true,

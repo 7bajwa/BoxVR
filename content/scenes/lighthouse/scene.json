@@ -7,5 +7,15 @@
   "music": "tidal-light",
   "ambient": "ocean",
   "gateColor": "#ffe7a0",
-  "colors": ["#2c4f52", "#0d1a22"]
+  "colors": [
+    "#2c4f52",
+    "#0d1a22"
+  ],
+  "gloves": {
+    "type": "rubber",
+    "main": "#ffcc33",
+    "cuff": "#ffcc33",
+    "trim": "hand"
+  },
+  "hurdle": "oar"
 }

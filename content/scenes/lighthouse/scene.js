@@ -125,6 +125,79 @@ export default {
       m.userData.v = 0.4 + r() * 0.8; mists.push(m); root.add(m);
     }
 
+
+    // ---------- shore island BEHIND the player: fisherman's house, moored rowboat, pines ----------
+    const grass = flat(0x3d4a3a), rockM = flat(0x3a3f40), plank = flat(0x6b513a), roofM = flat(0x5a2a26), whiteM = flat(0xd8d2c4);
+    const shoreParts = [];
+    const mound = new THREE.Mesh(new THREE.SphereGeometry(16, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), grass);
+    mound.scale.set(1.4, 0.16, 0.9); mound.position.set(0, -1.5, 20); shoreParts.push(mound);
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2, rr = 15 + r() * 6;
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5 + r() * 2, 0), rockM);
+      m.position.set(Math.cos(a) * rr * 1.35, -1.3, 20 + Math.sin(a) * rr * 0.85); m.scale.y = 0.5; shoreParts.push(m);
+    }
+    // house on stilts-free ground, porch facing the sea
+    const hb = new THREE.Mesh(new THREE.BoxGeometry(6, 3.4, 4.5), plank); hb.position.set(-5, 1.2, 15); shoreParts.push(hb);
+    const hr = new THREE.Mesh(new THREE.ConeGeometry(4.6, 2.4, 4), roofM); hr.rotation.y = Math.PI / 4; hr.scale.set(1, 1, 0.75); hr.position.set(-5, 4.1, 15); shoreParts.push(hr);
+    const porch = new THREE.Mesh(new THREE.BoxGeometry(6, 0.15, 1.6), plank); porch.position.set(-5, -0.45, 12.1); shoreParts.push(porch);
+    const chim = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.8, 0.7), whiteM); chim.position.set(-3.4, 4.8, 15.5); shoreParts.push(chim);
+    for (let i = 0; i < 6; i++) {          // little pines
+      const x = 6 + r() * 12, z = 14 + r() * 10;
+      const tr = new THREE.Mesh(new THREE.ConeGeometry(1 + r() * 0.6, 3.5 + r() * 2, 6), flat(0x23402e)); tr.position.set(x, 1.3, z); shoreParts.push(tr);
+    }
+    for (const [x, z] of [[2.3, 4.5], [2.8, 5.2], [-2.6, 3.8]]) {   // barrels by the jetty
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.8, 10), flat(0x5c4128)); b.position.set(x, 0.4, z); shoreParts.push(b);
+    }
+    // short jetty joining the pier to the island
+    for (let z = 1.9; z < 9; z += 0.27) { const pl = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.08, 0.24), plank); pl.position.set(0, -0.04, z); shoreParts.push(pl); }
+    root.add(kit.mergeByMaterial(shoreParts));
+    const houseWin = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.9), new THREE.MeshBasicMaterial({ color: 0xffc070 }));
+    houseWin.position.set(-5, 1.6, 12.74); houseWin.rotation.y = Math.PI; root.add(houseWin);
+    { const g = kit.glowSprite(0xffb85a, 3, 0.45); g.position.set(-5, 1.6, 12.4); root.add(g); }
+
+    // rowing boat moored beside the pier, bobbing
+    const rowboat = new THREE.Group();
+    const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 3.2, 8, 1, false, 0, Math.PI), flat(0x2f5a6a));
+    hull.rotation.set(Math.PI / 2, 0, Math.PI); hull.scale.set(1, 1, 0.55); rowboat.add(hull);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.06, 0.3), plank); seat.position.y = -0.05; rowboat.add(seat);
+    const oar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 2.4), plank); oar.position.set(0.5, 0.05, 0); oar.rotation.y = 0.3; rowboat.add(oar);
+    rowboat.position.set(2.6, -1.05, -3.5); root.add(rowboat);
+
+    // ---------- small island far to the RIGHT ----------
+    const isle = [];
+    const im = new THREE.Mesh(new THREE.SphereGeometry(7, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), grass); im.scale.set(1.3, 0.35, 1); im.position.set(34, -1.5, -78); isle.push(im);
+    for (let i = 0; i < 5; i++) { const t = new THREE.Mesh(new THREE.ConeGeometry(1.2, 4 + r() * 2, 6), flat(0x23402e)); t.position.set(30 + r() * 8, 1.4, -80 + r() * 5); isle.push(t); }
+    const hut = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 2.5), whiteM); hut.position.set(37, 0.6, -76); isle.push(hut);
+    const hutR = new THREE.Mesh(new THREE.ConeGeometry(2.3, 1.4, 4), roofM); hutR.rotation.y = Math.PI / 4; hutR.position.set(37, 2.3, -76); isle.push(hutR);
+    root.add(kit.mergeByMaterial(isle));
+
+    // ---------- sailboat crossing the bay ----------
+    const sail = new THREE.Group();
+    const sh = new THREE.Mesh(new THREE.BoxGeometry(5, 0.9, 1.6), flat(0x7a3a2a)); sh.scale.set(1, 1, 1); sail.add(sh);
+    const bow = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.6, 4), flat(0x7a3a2a)); bow.rotation.set(0, Math.PI / 4, -Math.PI / 2); bow.scale.set(1, 1, 0.75); bow.position.x = 3.2; sail.add(bow);
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 7, 6), plank); mast.position.set(0.3, 3.8, 0); sail.add(mast);
+    const sailShape = new THREE.Shape(); sailShape.moveTo(0, 0); sailShape.lineTo(0, 6); sailShape.lineTo(-3.6, 0.3); sailShape.closePath();
+    const canvasM = new THREE.MeshLambertMaterial({ color: 0xe9e2cf, side: THREE.DoubleSide });
+    const sl = new THREE.Mesh(new THREE.ShapeGeometry(sailShape), canvasM); sl.position.set(0.2, 0.8, 0); sail.add(sl);
+    const jib = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0, 5), new THREE.Vector2(2.6, 0)])), canvasM); jib.position.set(0.45, 0.8, 0); sail.add(jib);
+    const sailLamp = kit.glowSprite(0xffd28a, 1.5, 0.6); sailLamp.position.set(2.4, 1.2, 0); sail.add(sailLamp);
+    root.add(sail);
+    const sailState = { x: -90 };
+
+    // ---------- seagulls circling ----------
+    const gullMat = new THREE.MeshLambertMaterial({ color: 0xf2f2ee, side: THREE.DoubleSide });
+    const wing = new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0.55, 0.12), new THREE.Vector2(0.7, -0.02), new THREE.Vector2(0.2, -0.08)]));
+    wing.rotateX(-Math.PI / 2);
+    const gulls = [];
+    for (let i = 0; i < 9; i++) {
+      const gg = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), gullMat); body.scale.set(0.8, 0.8, 2.2); gg.add(body);
+      const L = new THREE.Mesh(wing, gullMat), R = new THREE.Mesh(wing, gullMat); R.scale.x = -1; gg.add(L, R);
+      gg.scale.setScalar(1.6 + r());
+      gg.userData = { L, R, c: new THREE.Vector3((r() - 0.5) * 30, 7 + r() * 9, -10 - r() * 40), rx: 6 + r() * 10, rz: 4 + r() * 6, sp: 0.15 + r() * 0.2, ph: r() * 9 };
+      gulls.push(gg); root.add(gg);
+    }
+
     let haze = 1;
     const apply = () => { fog.density = HAZE[haze]; water.material.uniforms.uDensity.value = HAZE[haze]; sky.material.uniforms.uSpread.value = 0.4 + haze * 0.12; };
     apply();
@@ -144,6 +217,15 @@ export default {
         const facing = Math.max(Math.pow(Math.max(0, beamDir.dot(tmp)), 24), Math.pow(Math.max(0, -beamDir.dot(tmp)), 24));
         flare.material.opacity = facing * 0.85;
         lampGlow.material.opacity = 0.6 + facing * 0.3;
+        rowboat.position.y = -1.05 + Math.sin(t * 1.3) * 0.08; rowboat.rotation.z = Math.sin(t * 1.1) * 0.05;
+        sailState.x += dt * 2.2; if (sailState.x > 90) sailState.x = -90;
+        sail.position.set(sailState.x, -1.0 + Math.sin(t * 0.9) * 0.15, -58); sail.rotation.z = Math.sin(t * 0.7) * 0.04;
+        for (const g of gulls) {
+          const u = g.userData, a = t * u.sp + u.ph;
+          g.position.set(u.c.x + Math.cos(a) * u.rx, u.c.y + Math.sin(a * 2) * 1.2, u.c.z + Math.sin(a) * u.rz);
+          g.rotation.y = -a + Math.PI;
+          const f = Math.sin(t * 5 + u.ph) * 0.5; u.L.rotation.z = f; u.R.rotation.z = -f;
+        }
         for (const bu of buoys) { bu.b.position.y = -1.0 + Math.sin(t * 1.2 + bu.ph) * 0.15; bu.g.position.y = bu.b.position.y + 0.9; bu.g.material.opacity = Math.sin(t * 2 + bu.ph) > 0.6 ? 0.95 : 0.08; }
         for (const m of mists) { m.position.x += m.userData.v * dt; if (m.position.x > 45) m.position.x = -45; }
         for (const l of lamps) l.material.opacity = 0.45 + Math.sin(t * 9 + l.position.x) * 0.04;

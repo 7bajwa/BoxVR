@@ -1,40 +1,40 @@
 // BOXFLOW — Quest 3 VR rig. Works with hand-tracking AND Touch controllers.
-// Each hand is a "Fist": world position, smoothed velocity, peak speed (power),
-// a glowing glove visual, a UI pointer ray, and haptics when a controller is held.
+// Each hand is a "Fist": world position + orientation, smoothed velocity, peak speed (power),
+// swing tracking, a themed glove, a UI pointer ray, and haptics when a controller is held.
+// Short tracking dropouts (common on fast uppercuts with hand-tracking) are bridged instead of
+// resetting the velocity, and the previous position is kept for a swept hit test.
 import * as THREE from 'three';
-import { glowTexture as getGlowTexture } from './kit.js';
+import { buildGlove } from './gloves.js';
 
-const HAND_JOINT = 'middle-finger-metacarpal'; // center of the knuckles ≈ punch contact point
-const _tmp = new THREE.Vector3();
+const HAND_JOINT = 'middle-finger-metacarpal'; // centre of the knuckles ≈ punch contact point
+const GAP_BRIDGE = 0.3;                        // s — re-acquired within this, keep the motion
+const _tmp = new THREE.Vector3(), _q = new THREE.Quaternion(), _off = new THREE.Vector3();
 
 class Fist {
   constructor(handedness, scene) {
     this.handedness = handedness;
     this.position = new THREE.Vector3();
-    this.prev = new THREE.Vector3();
+    this.from = new THREE.Vector3();      // where the fist was on the previous sample (swept test)
+    this.quaternion = new THREE.Quaternion();
     this.velocity = new THREE.Vector3();
     this.speed = 0;
     this.tracked = false;
-    this.source = null;     // 'hand' | 'controller'
+    this.lastSeen = -1;
+    this.source = null;                   // 'hand' | 'controller'
     this.gamepad = null;
-    this.history = [];      // [{t, speed, p}] — last ~0.7 s
-    this.wasTracked = false;
-
-    const col = handedness === 'left' ? 0x9be7ff : 0xffb3c4;
+    this.history = [];                    // [{ t, speed, p, v }] — last ~0.7 s
+    this.scene = scene;
     this.mesh = new THREE.Group();
-    const glove = new THREE.Mesh(
-      new THREE.SphereGeometry(0.05, 20, 14),
-      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }),
-    );
-    glove.scale.set(1, 0.85, 1.2);
-    const halo = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: getGlowTexture(), color: col, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending,
-    }));
-    halo.scale.setScalar(0.28);
-    this.halo = halo;
-    this.mesh.add(glove, halo);
     this.mesh.visible = false;
     scene.add(this.mesh);
+    this.setGloves();
+  }
+
+  setGloves(style) {
+    for (const c of [...this.mesh.children]) this.mesh.remove(c);
+    this.glove = buildGlove(this.handedness, style);
+    this.glove.position.z = 0.035;        // the knuckle point is the glove's front face
+    this.mesh.add(this.glove);
   }
 
   // Peak speed in the last ~90 ms: what the punch "had" when it landed.
@@ -44,14 +44,23 @@ class Fist {
     return m;
   }
 
-  // How far the fist travelled along `dir` during this punch: from the most pulled-back
-  // point in the last 0.6 s to now. A tap ≈ 0.05 m, a full extension ≈ 0.4–0.5 m.
+  // Direction of the punch = velocity at its fastest moment in the last ~120 ms
+  // (an uppercut curves: forward, then up — its fastest part is the one that counts).
+  peakVelocity(now, out) {
+    let best = this.speed; out.copy(this.velocity);
+    for (const h of this.history) if (now - h.t < 0.12 && h.speed > best) { best = h.speed; out.copy(h.v); }
+    return out;
+  }
+
+  // How far the fist travelled along `dir` during this punch. Tap ≈ 0.05 m, full ≈ 0.4–0.5 m.
   swingAlong(dir, now) {
     const cur = this.position.dot(dir);
     let min = cur;
     for (const h of this.history) if (now - h.t < 0.6) min = Math.min(min, h.p.dot(dir));
     return Math.max(0, cur - min);
   }
+
+  punchFx() { this.punchT = 0.12; }
 
   pulse(intensity = 0.35, ms = 60) {
     const gp = this.gamepad;
@@ -72,12 +81,11 @@ export class VRRig {
     this.scene = scene;
     this.fists = { left: new Fist('left', scene), right: new Fist('right', scene) };
     this.slots = [];
-    this.onSelectStart = null; // (slot) => void
+    this.onSelectStart = null;
     this.onSelectEnd = null;
-    this.onBack = null;        // B / Y pressed (controllers)
+    this.onBack = null;
 
     const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
-
     for (let i = 0; i < 2; i++) {
       const ray = renderer.xr.getController(i);
       const grip = renderer.xr.getControllerGrip(i);
@@ -87,24 +95,21 @@ export class VRRig {
       ray.add(line);
       const dot = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
       dot.visible = false; scene.add(dot);
-
-      const slot = { index: i, ray, grip, hand, line, dot, inputSource: null, handedness: null, selecting: false };
+      const slot = { index: i, ray, grip, hand, line, dot, inputSource: null, handedness: null };
       this.slots.push(slot);
       scene.add(ray, grip, hand);
-
-      ray.addEventListener('connected', (e) => {
-        slot.inputSource = e.data;
-        slot.handedness = e.data.handedness;
-      });
+      ray.addEventListener('connected', (e) => { slot.inputSource = e.data; slot.handedness = e.data.handedness; });
       ray.addEventListener('disconnected', () => {
         const f = this.fists[slot.handedness];
         if (f) { f.tracked = false; f.mesh.visible = false; f.gamepad = null; }
         slot.inputSource = null; slot.handedness = null;
       });
-      ray.addEventListener('selectstart', () => { slot.selecting = true; this.onSelectStart && this.onSelectStart(slot); });
-      ray.addEventListener('selectend', () => { slot.selecting = false; this.onSelectEnd && this.onSelectEnd(slot); });
+      ray.addEventListener('selectstart', () => this.onSelectStart && this.onSelectStart(slot));
+      ray.addEventListener('selectend', () => this.onSelectEnd && this.onSelectEnd(slot));
     }
   }
+
+  setGloves(style) { for (const f of Object.values(this.fists)) f.setGloves(style); }
 
   update(now, dt) {
     for (const f of Object.values(this.fists)) f.tracked = false;
@@ -114,8 +119,7 @@ export class VRRig {
       const fist = src && this.fists[src.handedness];
       if (!fist) continue;
 
-      // B (right) / Y (left) = back / pause. xr-standard mapping: buttons[5].
-      const gp = src.gamepad;
+      const gp = src.gamepad; // B (right) / Y (left) = back / pause (xr-standard buttons[5])
       const back = !!(gp && gp.buttons && gp.buttons[5] && gp.buttons[5].pressed);
       if (back && !slot.backDown && this.onBack) this.onBack();
       slot.backDown = back;
@@ -123,46 +127,47 @@ export class VRRig {
       let ok = false;
       if (src.hand) {
         const j = slot.hand.joints && slot.hand.joints[HAND_JOINT];
-        if (j && j.visible) { j.getWorldPosition(_tmp); ok = true; fist.source = 'hand'; fist.gamepad = null; }
+        if (j && j.visible) {
+          j.getWorldPosition(_tmp); j.getWorldQuaternion(fist.quaternion);
+          ok = true; fist.source = 'hand'; fist.gamepad = null;
+        }
       } else if (slot.grip.visible) {
-        slot.grip.getWorldPosition(_tmp);
-        // Push the contact point slightly forward from the grip to the knuckles.
-        const fwd = new THREE.Vector3(0, -0.02, -0.05).applyQuaternion(slot.grip.getWorldQuaternion(new THREE.Quaternion()));
-        _tmp.add(fwd);
+        slot.grip.getWorldPosition(_tmp); slot.grip.getWorldQuaternion(fist.quaternion);
+        _tmp.add(_off.set(0, -0.02, -0.05).applyQuaternion(fist.quaternion)); // grip → knuckles
         ok = true; fist.source = 'controller'; fist.gamepad = src.gamepad || null;
       }
       if (!ok) continue;
 
       fist.tracked = true;
-      fist.position.copy(_tmp);
-      if (!fist.wasTracked || dt <= 0) {
-        fist.prev.copy(fist.position); fist.velocity.set(0, 0, 0);
+      const gap = now - fist.lastSeen;
+      if (fist.lastSeen < 0 || gap > GAP_BRIDGE || gap <= 0) {
+        fist.from.copy(_tmp); fist.velocity.set(0, 0, 0);
       } else {
-        const inst = _tmp.clone().sub(fist.prev).divideScalar(Math.max(dt, 1e-3));
-        fist.velocity.lerp(inst, 0.55);
-        fist.prev.copy(fist.position);
+        fist.from.copy(fist.position);
+        const inst = _off.copy(_tmp).sub(fist.position).divideScalar(Math.max(gap, 1e-3));
+        if (gap > dt * 1.8) fist.velocity.copy(inst);  // re-acquired after a dropout: trust the jump
+        else fist.velocity.lerp(inst, 0.6);
       }
+      fist.position.copy(_tmp);
+      fist.lastSeen = now;
       fist.speed = fist.velocity.length();
-      fist.history.push({ t: now, speed: fist.speed, p: fist.position.clone() });
+      fist.history.push({ t: now, speed: fist.speed, p: fist.position.clone(), v: fist.velocity.clone() });
       while (fist.history.length && now - fist.history[0].t > 0.7) fist.history.shift();
 
       fist.mesh.position.copy(fist.position);
-      fist.halo.material.opacity = 0.35 + Math.min(0.6, fist.speed / 6);
+      fist.mesh.quaternion.copy(fist.quaternion);
+      const s = fist.punchT > 0 ? 1.18 : 1;
+      fist.glove.scale.setScalar(s);
+      if (fist.punchT > 0) fist.punchT -= dt;
+      fist.glove.userData.halo.material.opacity = 0.25 + Math.min(0.55, fist.speed / 7);
     }
-
-    for (const f of Object.values(this.fists)) {
-      f.mesh.visible = f.tracked;
-      f.wasTracked = f.tracked;
-    }
+    for (const f of Object.values(this.fists)) f.mesh.visible = f.tracked;
   }
 
-  // Ray (origin + direction) for UI pointing, per slot.
   getRay(slot, raycaster) {
     const m = slot.ray.matrixWorld;
     raycaster.ray.origin.setFromMatrixPosition(m);
     raycaster.ray.direction.set(0, 0, -1).transformDirection(m);
     return raycaster;
   }
-
-  setPointersVisible(v) { for (const s of this.slots) { s.line.visible = v && !!s.inputSource; if (!v) s.dot.visible = false; } }
 }

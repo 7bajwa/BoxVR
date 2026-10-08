@@ -3,13 +3,18 @@
 // Output: a level JSON (Export) or a custom level saved on this device (Save & Test).
 import { ACTIONS, SEQUENCE, DIFFICULTIES, hex } from './config.js';
 import { AudioEngine, songDuration, songPlan } from './audio.js';
-import { buildChart } from './charts.js';
+import { buildChart, buildHurdles } from './charts.js';
 import { loadRegistry, loadScene, loadSong, loadLevel, customLevels } from './content.js';
 import { idbSet, idbGet } from './storage.js';
 
 const $ = (id) => document.getElementById(id);
-const LANES = ['L_UPPER', 'L_HOOK', 'JAB', 'CROSS', 'R_HOOK', 'R_UPPER'];
-const KEY = Object.fromEntries(LANES.map((id) => [ACTIONS[id].key.toLowerCase(), id]));
+// Punch lanes + 3 hurdle lanes (H:duck, H:left = wall on the left -> move right, H:right).
+const PUNCH = ['L_UPPER', 'L_HOOK', 'JAB', 'CROSS', 'R_HOOK', 'R_UPPER'];
+const HURDLE = { 'H:duck': { label: 'DUCK', key: 'C', color: 0xffb35f }, 'H:left': { label: 'WALL ◀', key: 'Q', color: 0xff8a3c }, 'H:right': { label: 'WALL ▶', key: 'E', color: 0xff8a3c } };
+const LANES = [...PUNCH, ...Object.keys(HURDLE)];
+const isHurdle = (a) => a.startsWith('H:');
+const laneInfo = (id) => (isHurdle(id) ? HURDLE[id] : ACTIONS[id]);
+const KEY = Object.fromEntries(LANES.map((id) => [laneInfo(id).key.toLowerCase(), id]));
 
 const audio = new AudioEngine();
 const st = {
@@ -183,7 +188,7 @@ function notes() { return st.charts[st.diff]; }
 function sortNotes() { notes().sort((a, b) => a.b - b.b); }
 
 function nextComboAction(beat) {
-  const before = notes().filter((n) => n.b < beat);
+  const before = notes().filter((n) => n.b < beat && !isHurdle(n.a));
   if (!before.length) return SEQUENCE[0];
   const last = before[before.length - 1].a;
   return SEQUENCE[(SEQUENCE.indexOf(last) + 1) % SEQUENCE.length];
@@ -193,29 +198,35 @@ function placeAt(beat, action) {
   const b = snap(beat);
   if (b < 0) return;
   const list = notes();
-  const existing = list.findIndex((n) => Math.abs(n.b - b) < 1e-6);
+  const hz = !!(action && isHurdle(action));
+  const existing = list.findIndex((n) => Math.abs(n.b - b) < 1e-6 && isHurdle(n.a) === hz);
   if (existing >= 0) list.splice(existing, 1);
   list.push({ b, a: action || nextComboAction(b) });
   sortNotes();
-  if ($('seqOrder').checked) renumber();
+  if ($('seqOrder').checked && !(action && isHurdle(action))) renumber();
   ui();
 }
 
 // Keep the combo order intact after inserts/removals.
-function renumber() { notes().forEach((n, i) => { n.a = SEQUENCE[i % SEQUENCE.length]; }); }
+function renumber() { let i = 0; for (const n of notes()) if (!isHurdle(n.a)) n.a = SEQUENCE[i++ % SEQUENCE.length]; }
 
 function autoFill() {
   const mode = $('autoMode').value;
   const songLike = st.song ? { ...st.song, bpm: st.bpm } : { type: 'audio', bpm: st.bpm, duration: duration() - st.offset };
   const chart = buildChart({ charts: { [st.diff]: { auto: mode === 'dynamic' ? 'dynamic' : Number(mode) } } }, songLike, st.diff);
-  st.charts[st.diff] = chart.map((n) => ({ b: n.beat, a: n.action }));
+  const hurdles = buildHurdles({}, songLike, st.diff, chart);   // also suggests hurdles (edit freely)
+  st.charts[st.diff] = [...chart.map((n) => ({ b: n.beat, a: n.action })), ...hurdles.map((h) => ({ b: h.beat, a: 'H:' + h.type }))].sort((x, y) => x.b - y.b);
   ui();
 }
 
 // ---------------------------------------------------------------- level IO
 function levelJSON(forDevice = false) {
   const charts = {};
-  for (const d of DIFFICULTIES) charts[d] = { notes: st.charts[d].map((n) => [n.b, n.a]) };
+  for (const d of DIFFICULTIES) {
+    charts[d] = { notes: st.charts[d].filter((n) => !isHurdle(n.a)).map((n) => [n.b, n.a]) };
+    const h = st.charts[d].filter((n) => isHurdle(n.a)).map((n) => [n.b, n.a.slice(2)]);
+    if (h.length) charts[d].hurdles = h;
+  }
   const lvl = { name: st.name, scene: st.scene, target: st.target, effect: st.effect, charts };
   if (st.songId && !st.audioFile) lvl.song = st.songId;
   else lvl.audio = { file: st.audioFile ? st.audioFile.name : 'song.ogg', bpm: st.bpm, offset: st.offset, ...(forDevice ? { idbKey: 'audio:' + st.id } : {}) };
@@ -227,7 +238,8 @@ function applyLevel(lvl, songObj) {
   st.name = lvl.name || 'Level'; st.scene = lvl.scene || st.scene; st.target = lvl.target || st.target; st.effect = lvl.effect || st.effect;
   for (const d of DIFFICULTIES) {
     const spec = lvl.charts && lvl.charts[d];
-    if (spec && spec.notes) st.charts[d] = spec.notes.map(([b, a], i) => ({ b, a: a || SEQUENCE[i % SEQUENCE.length] }));
+    if (spec && spec.notes) st.charts[d] = [...spec.notes.map(([b, a], i) => ({ b, a: a || SEQUENCE[i % SEQUENCE.length] })),
+      ...(spec.hurdles || []).map(([b, type]) => ({ b, a: 'H:' + type }))].sort((x, y) => x.b - y.b);
     else if (songObj) st.charts[d] = buildChart(lvl, songObj, d).map((n) => ({ b: n.beat, a: n.action }));
     else st.charts[d] = [];
   }
@@ -316,7 +328,8 @@ function click(e) {
   const lane = Math.floor((y - RULER_H - BAND_H) / laneH);
   if (lane < 0 || lane >= LANES.length) return;
   const b = snap(beat);
-  const hit = notes().findIndex((n) => Math.abs(n.b - b) < st.grid / 2 && (n.a === LANES[lane] || $('seqOrder').checked));
+  const hurdleLane = isHurdle(LANES[lane]);
+  const hit = notes().findIndex((n) => Math.abs(n.b - b) < st.grid / 2 && (n.a === LANES[lane] || (!hurdleLane && !isHurdle(n.a) && $('seqOrder').checked)));
   if (hit >= 0) { notes().splice(hit, 1); if ($('seqOrder').checked) renumber(); ui(); }
   else placeAt(beat, LANES[lane]);
 }
@@ -355,7 +368,7 @@ function draw() {
 
   // lanes
   LANES.forEach((id, i) => {
-    const a = ACTIONS[id], y = RULER_H + BAND_H + i * laneH;
+    const a = laneInfo(id), y = RULER_H + BAND_H + i * laneH;
     const fl = laneFlash[id] && performance.now() - laneFlash[id] < 150;
     g.fillStyle = i % 2 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)';
     if (fl) g.fillStyle = hex(a.color) + '33';
@@ -368,7 +381,7 @@ function draw() {
   // notes
   for (const n of notes()) {
     if (n.b < first - 1 || n.b > last + 1) continue;
-    const i = LANES.indexOf(n.a), a = ACTIONS[n.a];
+    const i = LANES.indexOf(n.a), a = laneInfo(n.a);
     const x = xOf(n.b, W), y = RULER_H + BAND_H + i * laneH;
     const w = Math.max(10, Math.min(st.zoom * st.grid * 0.9, 36));
     g.fillStyle = hex(a.color); g.shadowColor = hex(a.color); g.shadowBlur = 10;

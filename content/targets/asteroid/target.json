@@ -1,0 +1,6 @@
+{
+  "name": "Asteroid",
+  "module": "target.js",
+  "sfx": "thud",
+  "glow": 0.6
+}
